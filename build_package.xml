@@ -138,6 +138,11 @@
      <junit haltonerror="yes" haltonfailure="yes">
         <formatter type="plain" usefile="false" /> 
         <classpath refid="project.class.path"/>
+		<batchtest>
+	       <fileset dir="${build}/testcases">
+		      <include name="**/*Test*" />
+	       </fileset>
+	    </batchtest>
      </junit>
   </target> 
 
