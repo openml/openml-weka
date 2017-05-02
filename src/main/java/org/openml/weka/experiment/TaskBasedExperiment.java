@@ -247,7 +247,7 @@ public class TaskBasedExperiment extends Experiment {
 		setPropertyArray(cArray);
 	}
 
-	public static void main(String[] args, Object runListener) {
+	public static void main(String[] args) {
 		try {
 			String strConfig;
 			WekaConfig config;
@@ -268,7 +268,7 @@ public class TaskBasedExperiment extends Experiment {
 
 			TaskBasedExperiment exp = new TaskBasedExperiment(new Experiment(), apiconnector, config);
 			ResultProducer rp = new TaskResultProducer(apiconnector, config);
-			TaskResultListener rl = new TaskResultListener(apiconnector, config, runListener);
+			TaskResultListener rl = new TaskResultListener(apiconnector, config);
 			SplitEvaluator se = new OpenmlClassificationSplitEvaluator();
 			Classifier sec = null;
 

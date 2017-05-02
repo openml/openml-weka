@@ -133,6 +133,15 @@
      </copy>
   </target>
 
+  <!-- run the testcases -->
+  <target name="test" depends="compile_tests">
+     <junit haltonerror="yes" haltonfailure="yes">
+        <formatter type="plain" usefile="false" /> 
+        <classpath refid="project.class.path"/>
+     </junit>
+  </target> 
+
+
   <!-- Put everything in ${build}/testcases into the ${package}-tests.jar file -->
   <target name="jar_tests" depends="compile_tests, init_dist"
    description="Creates a jar file with the test cases in ./dist. Run with -Dpackage=[package name]">

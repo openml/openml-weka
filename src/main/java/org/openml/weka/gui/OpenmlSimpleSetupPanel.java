@@ -242,7 +242,7 @@ public class OpenmlSimpleSetupPanel extends SimpleSetupPanel {
 
 		TaskBasedExperiment exp = new TaskBasedExperiment(exp_old, apiconnector, openmlconfig);
 		
-		TaskResultListener trl = new TaskResultListener(apiconnector, openmlconfig, null);
+		TaskResultListener trl = new TaskResultListener(apiconnector, openmlconfig);
 		try {
 			File f = File.createTempFile("WekaOpenMLResults", Constants.DATASET_FORMAT);
 			f.deleteOnExit();

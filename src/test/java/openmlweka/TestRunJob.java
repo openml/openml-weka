@@ -14,7 +14,7 @@ public class TestRunJob {
 		
 		for (String algorithm : algorithms) 
 		{
-			RunOpenmlJob.main(ArrayUtils.add(args, algorithm), null);
+			RunOpenmlJob.main(ArrayUtils.add(args, algorithm));
 		}
 	}
 }

@@ -1,0 +1,8 @@
+language: java
+jdk:
+  - oraclejdk8
+  - oraclejdk7
+  
+sudo: false
+script: ant -buildfile build_package.xml make_package -DpackageName=OpenmlWeka test
+

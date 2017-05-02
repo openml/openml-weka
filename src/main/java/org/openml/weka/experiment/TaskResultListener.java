@@ -46,9 +46,6 @@ import weka.experiment.InstancesResultListener;
 public class TaskResultListener extends InstancesResultListener {
 
 	private static final long serialVersionUID = 7230120341L;
-	
-	// Object which if assigned, it will do something with the run id.
-	private RunManager runListener = null;
 
 	private static final String[] DEFAULT_TAGS = { "weka", "weka_" + Version.VERSION };
 
@@ -67,23 +64,9 @@ public class TaskResultListener extends InstancesResultListener {
 
 	boolean skipJvmBenchmark = false;
 	
-	// Interface which is used to communicate with other objects which might want the run id after sending the task.
-	public interface RunManager 
-	{
-		// get the run associated with this Id
-		public void getRun(int id);
-	}
-	
-	public TaskResultListener(OpenmlConnector apiconnector, WekaConfig config, Object runListener) {
+	public TaskResultListener(OpenmlConnector apiconnector, WekaConfig config) {
 		super();
-		try
-		{
-			this.runListener = (RunManager) runListener;
-		}
-		catch(ClassCastException e)
-		{
-			this.runListener = null;
-		}
+
 		this.apiconnector = apiconnector;
 		currentlyCollecting = new HashMap<String, OpenmlExecutedTask>();
 		tasksWithErrors = new ArrayList<String>();
@@ -168,23 +151,13 @@ public class TaskResultListener extends InstancesResultListener {
 			output_files.put("trace", Conversion.stringToTempFile(oet.optimizationTrace.toString(), "optimization_trace", "arff"));
 		}
 
-		// place where we will store the run Id
-		int runId;
 		try {
 			UploadRun ur = apiconnector.runUpload(tmpDescriptionFile, output_files);
-			runId = ur.getRun_id();
 			Conversion.log("INFO", "Upload Run",
 					"Run was uploaded with rid " + ur.getRun_id() + ". Obtainable at " + apiconnector.getApiUrl() + "run/" + ur.getRun_id());
 		} catch (ApiException ae) {
 			ae.printStackTrace();
-			runId = -1;
 			Conversion.log("ERROR", "Upload Run", "Failed to upload run: " + ae.getMessage());
-			
-		}
-		// check if we have a listener for the run id
-		if(runListener != null)
-		{
-			runListener.getRun(runId);
 		}
 	}
 

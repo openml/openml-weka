@@ -1,4 +1,5 @@
-# weka
+[![Build Status](https://travis-ci.org/openml/openml-weka.svg?branch=master)](https://travis-ci.org/openml/openml-weka)
+
 The OpenmlWeka package
 
 (New) Ant installation

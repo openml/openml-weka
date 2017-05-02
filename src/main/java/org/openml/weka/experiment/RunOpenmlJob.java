@@ -5,18 +5,15 @@ import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Job;
 import org.openml.weka.algorithm.WekaConfig;
+
 import weka.core.CommandlineRunnable;
 import weka.core.Utils;
 import weka.core.Version;
 
 public class RunOpenmlJob implements CommandlineRunnable {
 
-	// Object which if assigned, will do something with the run id.
-	private static Object runListener = null;
-	
-	public static void main(String[] args, Object runListener) throws Exception {
+	public static void main(String[] args) throws Exception {
 		RunOpenmlJob rj = new RunOpenmlJob();
-		RunOpenmlJob.runListener = runListener;
 		rj.run(rj, args);
 	}
 
@@ -53,10 +50,9 @@ public class RunOpenmlJob implements CommandlineRunnable {
 		taskArgs[1] = config.toString();
 		taskArgs[2] = "-T";
 		taskArgs[3] = "" + task_id;
-		System.out.println(task_id);
 		taskArgs[4] = "-C";
 		
-		TaskBasedExperiment.main(ArrayUtils.addAll(taskArgs, classArgs), RunOpenmlJob.runListener);
+		TaskBasedExperiment.main(ArrayUtils.addAll(taskArgs, classArgs));
 	}
 	
 	@Override
