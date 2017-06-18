@@ -1,11 +1,14 @@
 package org.openml.weka.experiment;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Random;
 import org.apache.commons.lang3.ArrayUtils;
 import org.openml.apiconnector.io.OpenmlConnector;
+import org.openml.apiconnector.settings.Constants;
 import org.openml.apiconnector.xml.Tasks;
 import org.openml.apiconnector.xml.Tasks.Task;
+import org.openml.weka.algorithm.WekaConfig;
 
 /*
  * RandomBot is a class which submits a run to OpenMl.
@@ -38,7 +41,7 @@ public class RandomBot
 		String classifierCategory = args[2];
 		// get a random task id given the task filters
 		int taskId = bot.getRandomTaskId(taskType, taskTag);
-		// start a run on that task  if we have a correct task id
+		// start a run on the task  if we have a correct task id
 		if(taskId == -1)
 		{
 			return;
@@ -56,7 +59,14 @@ public class RandomBot
 	 */
 	public int getRandomTaskId(int type, String tag)
 	{
-		OpenmlConnector connector = new OpenmlConnector("https://openml.org/", "0748976331e2de2eae279fb32114999b");
+		WekaConfig config = null;
+		config = getConfigurationFile();
+		// without a configuration file the connection cannot be made
+		if(config == null)
+		{
+			return -1;
+		}
+		OpenmlConnector connector = new OpenmlConnector(config.getServer(), config.getApiKey());
 		int taskId;
 		try
 		{
@@ -82,6 +92,14 @@ public class RandomBot
 	 */
 	public void startTask(int id, String classifier)
 	{
+		WekaConfig config = null;
+		config = getConfigurationFile();
+		// without a configuration file the connection cannot be made
+		if(config == null)
+		{
+			showErrorMessage(TAG + ":" + "No Config file reference in startTask");
+			return;
+		}
 		HashMap<String,String[]> algorithms = initializeAlgorithms();
 		if(algorithms.get(classifier) == null)
 		{
@@ -92,7 +110,7 @@ public class RandomBot
 		int nrClassifiers = algorithms.get(classifier).length;
 		// generate a random id for the classifier category
 		int randomPosition = new Random().nextInt(nrClassifiers);
-		String[] arguments = {"-task_id", "" + id, "-config", "server=https://openml.org/; avoid_duplicate_runs=false; skip_jvm_benchmark=true; api_key=0748976331e2de2eae279fb32114999b", "-C"};
+		String[] arguments = {"-task_id", "" + id, "-config", "server=" + config.getServer() + "; avoid_duplicate_runs=" + config.getAvoidDuplicateRuns() + "; skip_jvm_benchmark=" + config.getSkipJvmBenchmark()+ "; api_key=" + config.getApiKey(), "-C"};
 		try
 		{
 			RunOpenmlJob.main(ArrayUtils.add(arguments, algorithms.get(classifier)[randomPosition]));
@@ -106,7 +124,7 @@ public class RandomBot
 	// initialize all of the weka algorithms under their categories. Return a hashmap which contains them.
 	private HashMap<String,String[]> initializeAlgorithms()
 	{
-		HashMap<String,String[]> algorithms = new HashMap();
+		HashMap<String,String[]> algorithms = new HashMap<String, String[]>();
 		algorithms.put("bayes", new String[]{"weka.classifiers.bayes.BayesNet", "weka.classifiers.bayes.NaiveBayes", "weka.classifiers.bayes.NaiveBayesMultinomial", "weka.classifiers.bayes.NaiveBayesMultinomialText", "weka.classifiers.bayes.NaiveBayesMultinomialUpdateable", "weka.classifiers.bayes.NaiveBayesUpdateable"});
 		algorithms.put("functions", new String[]{"weka.classifiers.functions.GaussianProcesses", "weka.classifiers.functions.LinearRegression", "weka.classifiers.functions.Logistic", "weka.classifiers.functions.MultilayerPerceptron", "weka.classifiers.functions.SGD", "weka.classifiers.functions.SGDText", "weka.classifiers.functions.SimpleLinearRegression", "weka.classifiers.functions.SimpleLogistic", "weka.classifiers.functions.SMO", "weka.classifiers.functions.SMOreg", "weka.classifiers.functions.VotedPerceptron"});
 		algorithms.put("lazy", new String[]{"weka.classifiers.lazy.IBk", "weka.classifiers.lazy.KStar", "weka.classifiers.lazy.LWL"});
@@ -120,5 +138,16 @@ public class RandomBot
 	private static void showErrorMessage(String errorMessage)
 	{
 		System.out.println(errorMessage);
+	}
+	private WekaConfig getConfigurationFile()
+	{
+		WekaConfig config = null;
+		// Check if have a config file
+		File configFile = new File(Constants.OPENML_DIRECTORY + "/openml.conf");
+		if(configFile.exists() && configFile.isFile())
+		{
+			config = new WekaConfig();
+		}
+		return config;
 	}
 }
