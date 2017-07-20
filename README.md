@@ -1,23 +1,17 @@
-[![Build Status](https://travis-ci.org/openml/openml-weka.svg?branch=master)](https://travis-ci.org/openml/openml-weka)
+Package for uploading Weka experiments to OpenML.
 
-The OpenmlWeka package
+Code example, download 100 (pre-selected) datasets and execute a REPTree on these.
 
-(New) Ant installation
-
-(1) Download Weka from SVN, trunk folder
-    https://svn.cms.waikato.ac.nz/svn/weka/trunk
-
-(2) Put OpenmlWeka package folder in the following folder:
-    <svnroot>/packages/external
-    (Or use symlink, ln -s )
-
-(3) Run from build file the <svnroot>/weka folder:
-    a) ant (to make weka itself, which is a dependency)
-    b) ant make_external -DpackageName=OpenmlWeka (build the package)
-
-(4) Package available in OpenmlWeka folder.
-
-
-(Old) Plain ant installation:
-
-ant make_external -DpackageName=OpenmlWeka
+```
+public static void runTasksAndUpload() throws Exception {
+  OpenmlConnector openml = new OpenmlConnector("<FILL_IN_OPENML_API_KEY>");
+  Study s = openml.studyGet("OpenML100", "tasks"); 
+  Classifier tree = new REPTree(); 
+  for (Integer taskId : s.getTasks()) { 
+    Task t = openml.taskGet(taskId); 
+    Instances d = InstancesHelper.getDatasetFromTask(openml, t);
+    int runId = RunOpenmlJob.executeTask(openml, new WekaConfig(), taskId, tree);
+    Run run = openml.runGet(runId);
+  }
+} 
+```

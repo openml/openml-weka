@@ -5,10 +5,10 @@
 PackageName=OpenmlWeka
 
 # Version (required)
-Version=0.9.3
+Version=1.0.0
 
 #Date (year-month-day)
-Date=2016-01-20
+Date=2017-07-20
 
 # Title (required)
 Title=Openml Weka
@@ -23,16 +23,16 @@ Author=Jan N. van Rijn <j.n.van.rijn@liacs.leidenuniv.nl>
 Maintainer=Jan N. van Rijn <j.n.van.rijn@liacs.leidenuniv.nl>
 
 # License (required)
-License=GPL 3.0
+License=BSD-3-Clause
 
 # Description (required)
-Description=This package allows for the sharing of Weka runs on OpenML
+Description=Allows sharing Weka experiments on OpenML. Stores for every experiment the classifier, the (serialized) models, the predictions and evaluation measures. Works well together in combination with the openml apiconnector (available on Maven Central, artifact id org.openml.apiconnector). If you found this package useful, please cite: J.N. van Rijn, Massively Collaborative Machine Learning, Leiden University, 2016. 
 
 # Package URL for obtaining the package archive (required)
 PackageURL=http://www.openml.org/downloads/OpenmlWeka.zip
 
 # URL for further information
-URL=http://www.openml.org/plugins
+URL=https://github.com/openml/openml-weka
 
 # Enhances various other packages ?
 #Enhances=packageName1,packageName2,...
@@ -41,7 +41,7 @@ URL=http://www.openml.org/plugins
 #Related=packageName1,packageName2,...
 
 # Dependencies (format: packageName (equality/inequality version_number)
-Depends=weka (>= 3.7.12)
+Depends=weka (>= 3.9.0)
 
 # Message to display in installation. Can be used to provide
 # special instructions (e.g. manual stuff needed to complete
