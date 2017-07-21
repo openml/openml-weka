@@ -104,7 +104,7 @@ public class TaskResultListener extends InstancesResultListener {
 		tasksWithErrors = new ArrayList<String>();
 		all_tags = ArrayUtils.addAll(DEFAULT_TAGS, config.getTags());
 		skipJvmBenchmark = config.getSkipJvmBenchmark();
-		runIds = new ArrayList<>();
+		runIds = new ArrayList<Integer>();
 	}
 
 	public void acceptFullModel(Task t, Instances sourceData, Classifier classifier, String options, Map<String, Object> splitEvaluatorResults,

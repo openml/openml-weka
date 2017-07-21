@@ -13,7 +13,7 @@ The OpenmlWeka package
 
 (3) Run from build file the <svnroot>/weka folder:
     a) ant (to make weka itself, which is a dependency)
-    b) ant make_external -DpackageName=OpenmlWeka (build the package)
+    b) ant make_external -DpackageName=openml-weka (build the package)
 
 (4) Package available in OpenmlWeka folder.
 

@@ -95,17 +95,11 @@
       <version>4.11</version>
       <scope>test</scope>
     </dependency>
-
+    
     <dependency>
       <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-      <version>3.1</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.thoughtworks.xstream</groupId>
-      <artifactId>xstream</artifactId>
-      <version>1.4.7</version>
+      <artifactId>commons-math3</artifactId>
+      <version>3.6.1</version>
     </dependency>
     
     <dependency>
@@ -114,8 +108,9 @@
       <version>1.0.14</version>
     </dependency>
     
+    
     <dependency>
-      <groupId>nz.ac.waikato.cms.moa</groupId>
+      <groupId>nz.ac.waikato.cms.weka</groupId>
       <artifactId>weka-dev</artifactId>
       <version>[3.9.0,)</version>
     </dependency>
@@ -125,6 +120,7 @@
       <artifactId>multisearch-weka-package</artifactId>
       <version>[2017.3.28,)</version>
     </dependency>
+    
   </dependencies>
 
   <properties>
