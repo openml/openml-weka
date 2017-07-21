@@ -45,8 +45,13 @@
 
   <scm>
     <connection>scm:git:https://github.com/openml/openml-weka</connection>
+<<<<<<< HEAD
     <developerConnection>scm:git:https://github.com/openml-weka</developerConnection>
     <url>https://github.com/openml-weka</url>
+=======
+    <developerConnection>scm:git:https://github.com/openml/openml-weka</developerConnection>
+    <url>https://github.com/openml/openml-weka</url>
+>>>>>>> 8fc4bd80efe93f2d6ea499df40a97c5e3997b914
     <tag>openmlweka-0.9.0</tag>
   </scm>
 
@@ -112,7 +117,7 @@
     <dependency>
       <groupId>nz.ac.waikato.cms.weka</groupId>
       <artifactId>weka-dev</artifactId>
-      <version>3.9.0</version>
+      <version>[3.9.0,)</version>
     </dependency>
     
     <dependency>
