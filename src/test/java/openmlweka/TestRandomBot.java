@@ -33,6 +33,7 @@ package openmlweka;
 
 import static org.junit.Assert.*;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.openml.weka.experiment.RandomBot;
 
@@ -46,6 +47,7 @@ public class TestRandomBot
 	}
 
 	@Test
+	@Ignore
 	public void testTaskType()
 	{
 		try
@@ -59,6 +61,7 @@ public class TestRandomBot
 	}
 	
 	@Test
+	@Ignore
 	public void testClassifierType()
 	{
 		try
@@ -72,6 +75,7 @@ public class TestRandomBot
 		
 	}
 	@Test
+	@Ignore
 	public void testTaskId() 
 	{
 		int taskId = bot.getRandomTaskId(1, "study_41");
