@@ -45,9 +45,9 @@
 
   <scm>
     <connection>scm:git:https://github.com/openml/openml-weka</connection>
-    <developerConnection>scm:git:https://github.com/openml-weka</developerConnection>
-    <url>https://github.com/openml-weka</url>
-    <tag>HEAD</tag>
+    <developerConnection>scm:git:https://github.com/openml/openml-weka</developerConnection>
+    <url>https://github.com/openml/openml-weka</url>
+    <tag>openmlweka-0.9.0</tag>
   </scm>
 
   <profiles>
