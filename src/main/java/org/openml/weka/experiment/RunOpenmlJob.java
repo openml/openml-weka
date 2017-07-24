@@ -36,6 +36,7 @@ import java.beans.PropertyDescriptor;
 
 import javax.swing.DefaultListModel;
 
+import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Task;
 import org.openml.weka.algorithm.WekaConfig;
@@ -87,7 +88,9 @@ public class RunOpenmlJob implements CommandlineRunnable {
 		
 		// set task
 		DefaultListModel<Task> tasks = new DefaultListModel<Task>();
-		tasks.add(0, openml.taskGet(task_id));
+		Task task = openml.taskGet(task_id);
+		Conversion.log("OK", "TaskGet", "Downloaded " + task.getTask_name());
+		tasks.add(0, task);
 		exp.setTasks(tasks);
 		
 		// run the stuff

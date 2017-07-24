@@ -26,7 +26,7 @@ Maintainer=Jan N. van Rijn <j.n.van.rijn@liacs.leidenuniv.nl>
 License=BSD-3-Clause
 
 # Description (required)
-Description=Allows sharing Weka experiments on OpenML. Stores for every experiment the classifier, the (serialized) models, the predictions and evaluation measures. Works well together in combination with the openml apiconnector (available on Maven Central, artifact id org.openml.apiconnector). If you found this package useful, please cite: J. N. van Rijn, Massively Collaborative Machine Learning, Leiden University, 2016. 
+Description=Allows sharing Weka experiments on OpenML. Stores for every experiment the classifier, the (serialized) models, the predictions and evaluation measures. Works well in combination with the openml apiconnector (available on Maven Central, artifact id org.openml.apiconnector). If you found this package useful, please cite: J. N. van Rijn, Massively Collaborative Machine Learning, Leiden University, 2016. 
 
 # Package URL for obtaining the package archive (required)
 PackageURL=https://github.com/openml/openml-weka/releases/download/openmlweka-0.9.5/OpenmlWeka.zip
