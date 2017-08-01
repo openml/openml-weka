@@ -61,6 +61,7 @@ public class OpenmlExperimenter extends JPanel implements GUIChooserMenuPlugin {
 
 	/**
 	 * Creates the experiment environment gui with no initial experiment
+	 * @param classFirst
 	 */
 	public OpenmlExperimenter(boolean classFirst) {
 
