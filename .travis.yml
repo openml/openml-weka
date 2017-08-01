@@ -1,8 +1,7 @@
 language: java
+sudo: false
 jdk:
   - oraclejdk8
-  - oraclejdk7
-  
-sudo: false
-script: ant -buildfile build_package.xml make_package -DpackageName=OpenmlWeka test
-
+  - oraclejdk7 
+script: mvn clean verify
+after_success: mvn jacoco:report coveralls:report
