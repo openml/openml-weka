@@ -244,8 +244,7 @@ public class OpenmlSimpleSetupPanel extends SimpleSetupPanel {
 	/**
 	 * Sets the experiment to configure.
 	 * 
-	 * @param exp
-	 *            a value of type 'Experiment'
+	 * @param exp_old - a value of type 'Experiment'
 	 * @return true if experiment could be configured, false otherwise
 	 */
 	public boolean setExperiment(Experiment exp_old) {
