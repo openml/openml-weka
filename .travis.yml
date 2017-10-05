@@ -2,5 +2,5 @@ language: java
 sudo: false
 jdk:
   - oraclejdk8
-script: mvn clean verify
+script: mvn clean javadoc:javadoc scm-publish:publish-scm verify
 after_success: mvn jacoco:report coveralls:report
