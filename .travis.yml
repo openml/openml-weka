@@ -2,5 +2,16 @@ language: java
 sudo: false
 jdk:
   - oraclejdk8
-script: mvn clean verify
+env:
+  global:
+   - secure: "jflTEBntsuB+WK+xYhyOiWduMQ8VL0i8GtQm/xjqPPOkK9xb3fs1nM5572x8NRCCvm68Dob2oINr4Th1dRDDLKk66+w7/OCCKCPnb8Xg8pFpZa7XSUehWIMNZrRQw3yQYLCZCUenROmGhN7Yc/dG67/YkYxdaEmR6KVVGDCUu76lNMYFdQqwsV2WL9HFhTIOswmS8RBO5R5xF6P7WijcTTApfRy5mRAqCt5fzdJKbjMunYhA5TwN/k3j7ZYSbuPhZscTNjJHQNnJxytmB023f/WTC0Y6oeZITo/6wIUy0ZzBCsIuBXLc5qcCAhVBqMulgaUM7vS209cagpZdQGdj452inURzIcU4u1DJKLHZYXWQvm2DEaV8iI8GvhRrmGHE7r22Z2BMUZLoYkbex9toDfdO5cvc+1bCVe9AR7krYeVSMCoeCINDFdHK1zgm+6oZSeY4TjxWsdvfFGPkJ/Dhg3tuEOs9ZQvls5BPT7lAcvr3njXzyjyawfamytyWp3NMhAlg77rC27cVpDs1rfeIMRJGvy4JF0i7YitzYQ4SgU/YARQaS/dTcQ48lnS2fvH+8zBrn5SzmtGu22N4VUOWH+CnOPuaSRGfpQxZIBXsVG/ZSRpV4ICqK1h6xQCGzogO6FdtCGkmdFru6fPYhAKV6EiLTmJRvEuPx/slKtHOGPs="
+script: mvn clean javadoc:javadoc verify
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $AUTH
+  on:
+    branch: master
+  local_dir: ./target/apidocs
+  name: Minion
 after_success: mvn jacoco:report coveralls:report
