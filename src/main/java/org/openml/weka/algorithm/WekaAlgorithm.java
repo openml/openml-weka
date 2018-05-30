@@ -42,7 +42,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import org.apache.commons.lang3.StringUtils;
 import org.openml.apiconnector.algorithms.Conversion;
@@ -174,12 +173,14 @@ public class WekaAlgorithm {
 		String[] defaultOptions = ((OptionHandler) classifierNew).getClass().newInstance().getOptions();
 		String[] currentOptions = classifierOrig.getOptions();
 		
-		List<Parameter> flowParameters = new ArrayList<Flow.Parameter>();
+		Map<String, Parameter> flowParameters = new LinkedHashMap<String, Flow.Parameter>();
 		Map<String, Flow> flowComponents = new LinkedHashMap<String, Flow>();
 		
 		Enumeration<Option> parameters = ((OptionHandler) classifierNew).listOptions();
 		while(parameters.hasMoreElements()) {
 			Option parameter = parameters.nextElement();
+			// System.out.println("- " + classifierOrig.getClass().getName() + "_" + parameter.name() + ", " + parameter.description());
+			
 			if(parameter.name().trim().equals("")) continue; // filter trash
 			String defaultValue = "";
 			String currentValue = "";
@@ -191,6 +192,16 @@ public class WekaAlgorithm {
 				defaultValue = Utils.getOption(parameter.name(), defaultOptions);
 				currentValue = Utils.getOption(parameter.name(), currentOptions);
 			}
+			
+			if (flowParameters.containsKey(parameter.name())) {
+				// some weka classifiers have duplicate options!
+				Parameter other = flowParameters.get(parameter.name());
+				if (parameter.description().equals(other.getDescription()) && other.getDefault_value().equals(defaultValue)) {
+					// same name and same default value, probably same parameter
+					continue;
+				}
+				throw new Exception("Duplicate parameter: " + parameter.name());
+			}
 				
 			if (defaultValue.length() == 0 || isFloat(defaultValue) || isChar(defaultValue) || isBoolean(defaultValue)) {
 				// Parameter with vanilla option (recognized by integer, float or empty value)
@@ -200,8 +211,9 @@ public class WekaAlgorithm {
 				} else {
 					type = ParameterType.OPTION;
 				}
+				
 				Parameter current = new Parameter(parameter.name(), type.getName(), defaultValue, parameter.description());
-				flowParameters.add(current);
+				flowParameters.put(parameter.name(), current);
 				continue;
 			}
 			
@@ -220,7 +232,7 @@ public class WekaAlgorithm {
 					type = ParameterType.KERNEL;
 					
 					Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
-					flowParameters.add(current);
+					flowParameters.put(parameter.name(), current);
 					flowComponents.put(parameter.name(), subimplementation);
 				} else if (parameterObject instanceof Classifier) {
 					// Meta algorithms and stuff. All parameters follow from the hyphen in currentOptions
@@ -228,12 +240,12 @@ public class WekaAlgorithm {
 					type = ParameterType.BASELEARNER;
 					
 					Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
-					flowParameters.add(current);
+					flowParameters.put(parameter.name(), current);
 					flowComponents.put(parameter.name(), subimplementation);
 				} else if (isAbstractParameter(parameterObject)) {
 					type = ParameterType.ARRAY;
 					Parameter current = new Parameter(parameter.name(), type.getName(), null, parameter.description());
-					flowParameters.add(current);
+					flowParameters.put(parameter.name(), current);
 				}
 			} catch(ClassNotFoundException e) {
 				throw new Exception("Could not parse parameter into any of the known categories: " + parameter.name());
@@ -267,7 +279,7 @@ public class WekaAlgorithm {
 		for (String key : flowComponents.keySet()) {
 			i.addComponent(key, flowComponents.get(key), false);
 		}
-		for (Parameter p : flowParameters) {
+		for (Parameter p : flowParameters.values()) {
 			i.addParameter(p);
 		}
 		

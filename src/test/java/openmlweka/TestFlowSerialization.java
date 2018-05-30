@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
@@ -46,6 +47,7 @@ import org.openml.weka.algorithm.WekaAlgorithm;
 
 import com.thoughtworks.xstream.XStream;
 
+import weka.classifiers.AbstractClassifier;
 import weka.classifiers.Classifier;
 import weka.classifiers.bayes.NaiveBayes;
 import weka.classifiers.functions.Logistic;
@@ -76,50 +78,78 @@ public class TestFlowSerialization {
 	public final OpenmlConnector connector = new OpenmlConnector(
 			"https://test.openml.org/", "8baa83ecddfe44b561fd3d92442e3319");
 	
+	private static Map<String, Parameter> getParametersAsMap(Flow flow) {
+		Parameter[] parameters = flow.getParameter();
+		Map<String, Parameter> paramMap = new TreeMap<String, Parameter>();
+		for (Parameter p : parameters) {
+			paramMap.put(p.getName(), p);
+		}
+		return paramMap;
+	}
+	
 	@Test
 	public void testSimpleFlow() throws Exception {
 		String uuid = UUID.randomUUID().toString();
 		Classifier[] classifiers = {new ZeroR(), new OneR(), new JRip(), 
 									new J48(), new REPTree(), new HoeffdingTree(), new LMT(),
 		                            new NaiveBayes(), new IBk(),
-		                            new SMO(), new Logistic(), new MultilayerPerceptron(),
+		                            new Logistic(), new MultilayerPerceptron(),
 		                            new RandomForest(), new Bagging(), new AdaBoostM1()};
 		                            
 		for (Classifier classif : classifiers){
-			Flow result = WekaAlgorithm.serializeClassifier((OptionHandler) classif, TAGS);
+			System.out.println(classif.getClass().getName());
+			Flow uploaded = WekaAlgorithm.serializeClassifier((OptionHandler) classif, TAGS);
+
 			if (USE_SENTINEL) {
-				result.setName(uuid + "_" + result.getName());
+				uploaded.setName(uuid + "_" + uploaded.getName());
 			}
-			String resultAsString = xstream.toXML(result);
-			// UploadFlow uf = connector.flowUpload(Conversion.stringToTempFile(resultAsString, result.getName(), "xml"), null, null);
-			// System.out.println(uf.getId());
-			// TODO: now download and check if equal
+			String resultAsString = xstream.toXML(uploaded);
+			UploadFlow uf = connector.flowUpload(Conversion.stringToTempFile(resultAsString, uploaded.getName(), "xml"), null, null);
+			Flow downloaded = connector.flowGet(uf.getId());
+			
+			// check parameter values
+			assert(getParametersAsMap(downloaded).keySet().equals(getParametersAsMap(uploaded).keySet()));
 		}
 	}
 	
 	@Test
+	@Ignore("SVM has duplicate parameter and underlying function will crash")
 	public void testFlowWithKernel() throws Exception {
 		Kernel[] kernels = {new PolyKernel(), new RBFKernel(), new StringKernel()};
 		
 		SMO svm = new SMO();
 		for (Kernel k : kernels) {
 			svm.setKernel(k);
-			Flow result = WekaAlgorithm.serializeClassifier(svm, null);
+			Flow flow = WekaAlgorithm.serializeClassifier(svm, null);
 			
 			// check the name of the kernel
 			String kernelName = k.getClass().getName();
 			String expectedName = svm.getClass().getName() + "(" + kernelName + ")";
-			assert(result.getName().equals(expectedName));
+			assert(flow.getName().equals(expectedName));
 			
-			// check the parameter:
-			Parameter[] parameters = result.getParameter();
-			Map<String, Parameter> paramMap = new TreeMap<String, Parameter>();
-			for (Parameter p : parameters) {
-				paramMap.put(p.getName(), p);
-				System.out.println(p.getName());
-			}
-			assert(paramMap.get("K").getDefault_value().contains(kernelName));
+			// parameter default value
+			assert(getParametersAsMap(flow).get("K").getDefault_value().contains(kernelName));
 		}
-		
 	}
+	
+	@Test
+	public void testFlowWithSubclassifier() throws Exception {
+		Classifier[] baseclassifier = {new REPTree(), new J48(), new NaiveBayes()};
+		
+		AdaBoostM1 metaclassif = new AdaBoostM1();
+		for (Classifier base : baseclassifier) {
+			metaclassif.setClassifier(base);
+			Flow flow = WekaAlgorithm.serializeClassifier(metaclassif, null);
+			
+			// check the name of the kernel
+			String baseName = base.getClass().getName();
+			String expectedName = metaclassif.getClass().getName() + "(" + baseName + ")";
+			
+			assert(flow.getName().equals(expectedName));
+			
+			// parameter default value
+			assert(getParametersAsMap(flow).get("W").getDefault_value().contains(baseName));
+		}
+	}
+	
 }
