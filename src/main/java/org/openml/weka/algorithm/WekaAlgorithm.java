@@ -36,10 +36,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.commons.lang3.StringUtils;
 import org.openml.apiconnector.algorithms.Conversion;
@@ -85,11 +88,44 @@ public class WekaAlgorithm {
 		}
 		return version;
 	}
+
+	public static boolean isFloat(String s) {
+	    try { 
+	        Float.parseFloat(s); 
+	    } catch(NumberFormatException e) { 
+	        return false; 
+	    } catch(NullPointerException e) {
+	        return false;
+	    }
+	    // only got here if we didn't return false
+	    return true;
+	}
+
+	public static boolean isChar(String s) {
+	    return s.length() == 1;
+	}
+
+	public static boolean isBoolean(String s) {
+	    String lower = s.toLowerCase().trim();
+	    return lower == "true" || lower == "false";
+	}
+	
+	public static boolean isAbstractParameter(Object parameterObject) {
+		try {
+			if (parameterObject instanceof AbstractParameter) {
+				return true;
+			}
+			return false;
+		} catch(NoClassDefFoundError e) {
+			// If the module is not loaded, it can not be part of it
+			return false;
+		}
+	}
 	
 	public static Integer getSetupId(String classifierName, String option_str, OpenmlConnector apiconnector) throws Exception {
-		
 		// first find flow. if the flow doesn't exist, neither does the setup.
-		Flow find = WekaAlgorithm.serializeClassifier(classifierName, null);
+		Classifier classifier = (Classifier) Class.forName(classifierName).newInstance();
+		Flow find = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
 		int flow_id = -1;
 		try {
 			FlowExists result = apiconnector.flowExists(find.getName(), find.getExternal_version());
@@ -132,88 +168,107 @@ public class WekaAlgorithm {
 		return ui.getId();
 	}
 
-	public static Flow serializeClassifier(String classifier_name, String[] tags) throws Exception {
-		Object classifier = Class.forName(classifier_name).newInstance();
-		String[] defaultOptions = ((OptionHandler) classifier).getClass().newInstance().getOptions();
+	public static Flow serializeClassifier(OptionHandler classifierOrig, String[] tags) throws Exception {
+		String classifier_name = classifierOrig.getClass().getName();
+		Object classifierNew = Class.forName(classifier_name).newInstance();
+		String[] defaultOptions = ((OptionHandler) classifierNew).getClass().newInstance().getOptions();
+		String[] currentOptions = classifierOrig.getOptions();
 		
-		String classPath = classifier.getClass().getName();
-		String classifierName = classPath.substring( classPath.lastIndexOf('.') + 1 );
-		String name = "weka." + classifierName;
-		String version = getVersion(classifier_name);
-		String description = "Weka implementation of " + classifierName;
-		String language = "English";
-		String dependencies = "Weka_" + Version.VERSION;
+		List<Parameter> flowParameters = new ArrayList<Flow.Parameter>();
+		Map<String, Flow> flowComponents = new LinkedHashMap<String, Flow>();
 		
-		if( classifier instanceof TechnicalInformationHandler ) {
-			description = ((TechnicalInformationHandler) classifier).getTechnicalInformation().toString();
-		}
-		
-		Flow i = new Flow( name, classifier.getClass().getName(), dependencies + "_" + version, description, language, dependencies );
-		if (tags != null) {
-			for(String tag : tags) {
-				i.addTag(tag);
-			}
-		}
-		
-		Enumeration<Option> parameters = ((OptionHandler) classifier).listOptions();
+		Enumeration<Option> parameters = ((OptionHandler) classifierNew).listOptions();
 		while(parameters.hasMoreElements()) {
 			Option parameter = parameters.nextElement();
 			if(parameter.name().trim().equals("")) continue; // filter trash
 			String defaultValue = "";
 			String currentValue = "";
+			
 			if(parameter.numArguments() == 0) {
 				defaultValue = Utils.getFlag(parameter.name(), defaultOptions) == true ? "true" : "";
+				currentValue = Utils.getFlag(parameter.name(), currentOptions) == true ? "true" : "";
 			} else {
 				defaultValue = Utils.getOption(parameter.name(), defaultOptions);
+				currentValue = Utils.getOption(parameter.name(), currentOptions);
+			}
+				
+			if (defaultValue.length() == 0 || isFloat(defaultValue) || isChar(defaultValue) || isBoolean(defaultValue)) {
+				// Parameter with vanilla option (recognized by integer, float or empty value)
+				ParameterType type;
+				if (parameter.numArguments() == 0) {
+					type = ParameterType.FLAG;
+				} else {
+					type = ParameterType.OPTION;
+				}
+				Parameter current = new Parameter(parameter.name(), type.getName(), defaultValue, parameter.description());
+				flowParameters.add(current);
+				continue;
 			}
 			
-			String[] currentValueSplitted = currentValue.split(" ");
-			
 			try {
-				Object parameterObject = Class.forName(currentValueSplitted[0]).newInstance();
+				String[] currentValueSplitted = Utils.splitOptions(currentValue);
+				Class parameterClass = Class.forName(currentValueSplitted[0]);
+				Object parameterObject = Utils.forName(parameterClass, 
+						currentValueSplitted[0], 
+						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
 				ParameterType type;
 				Flow subimplementation;
 				
 				if(parameterObject instanceof Kernel) {
 					// Kernels etc. All parameters of the kernel are on the same currentOptions entry
-					subimplementation = serializeClassifier(currentValueSplitted[0], tags);
+					subimplementation = serializeClassifier((Kernel) parameterObject, tags);
 					type = ParameterType.KERNEL;
 					
-					i.addComponent(parameter.name(), subimplementation);
-					i.addParameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
+					Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
+					flowParameters.add(current);
+					flowComponents.put(parameter.name(), subimplementation);
 				} else if (parameterObject instanceof Classifier) {
 					// Meta algorithms and stuff. All parameters follow from the hyphen in currentOptions
-					subimplementation = serializeClassifier( currentValueSplitted[0], tags);
+					subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
 					type = ParameterType.BASELEARNER;
 					
-					i.addComponent(parameter.name(), subimplementation);
-					i.addParameter(parameter.name(), type.getName(), currentValue, parameter.description());
-				} else {
-					try {
-						// AbstractParameter class is part of MultiSearch Package, and might not be present. 
-						if (parameterObject instanceof AbstractParameter) { 
-							type = ParameterType.ARRAY;
-							i.addParameter(parameter.name(), type.getName(), null, parameter.description());
-						} else {
-							Exception current = new ClassNotFoundException("Parameter class found, but no known procedure to handle it found. Will be handled as plain: " + currentValueSplitted[0]);
-							Conversion.log("Warning","FlowCreation",current.getMessage());
-							throw current;
-						}
-					} catch (NoClassDefFoundError e) {
-						Exception current = new ClassNotFoundException("Parameter class found, but no known procedure to handle it found. Will be handled as plain: " + currentValueSplitted[0]);
-						Conversion.log("Warning","FlowCreation",current.getMessage());
-						throw current;
-					}
+					Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
+					flowParameters.add(current);
+					flowComponents.put(parameter.name(), subimplementation);
+				} else if (isAbstractParameter(parameterObject)) {
+					type = ParameterType.ARRAY;
+					Parameter current = new Parameter(parameter.name(), type.getName(), null, parameter.description());
+					flowParameters.add(current);
 				}
 			} catch(ClassNotFoundException e) {
-				// if this parameter did contain a subimplementation, we already
-				// added it. This is the other case, were we will have to decide
-				// whether to add it. TODO: do something smart about it. 
-				if(i.parameter_exists(parameter.name()) == false) {
-					ParameterType type = (parameter.numArguments() == 0) ? ParameterType.FLAG : ParameterType.OPTION;
-					i.addParameter(parameter.name(), type.getName(), defaultValue, parameter.description());
-				}
+				throw new Exception("Could not parse parameter into any of the known categories: " + parameter.name());
 			}
+		}
+		
+		String version = getVersion(classifier_name);
+		String description = "Weka implementation. ";
+		String language = "English";
+		String dependencies = "Weka_" + Version.VERSION;
+		
+		if(classifierNew instanceof TechnicalInformationHandler) {
+			description = ((TechnicalInformationHandler) classifierNew).getTechnicalInformation().toString();
+		}
+		
+		String flowName = classifierNew.getClass().getName();
+		if (flowComponents.size() > 0) {
+			flowName += "(";
+			for (Flow component : flowComponents.values()) {
+				flowName += component.getName() + ",";
+			}
+			flowName = flowName.substring(0, flowName.length()-1) + ")";
+		}
+		
+		Flow i = new Flow(flowName, classifierNew.getClass().getName(), dependencies + "_" + version, description, language, dependencies);
+		if (tags != null) {
+			for(String tag : tags) {
+				i.addTag(tag);
+			}
+		}
+		for (String key : flowComponents.keySet()) {
+			i.addComponent(key, flowComponents.get(key), false);
+		}
+		for (Parameter p : flowParameters) {
+			i.addParameter(p);
 		}
 		
 		return i;

@@ -31,12 +31,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 package openmlweka;
 
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import org.junit.Test;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
+import org.openml.apiconnector.xml.Flow.Parameter;
 import org.openml.apiconnector.xml.UploadFlow;
 import org.openml.apiconnector.xstream.XstreamXmlMapping;
 import org.openml.weka.algorithm.WekaAlgorithm;
@@ -48,6 +51,10 @@ import weka.classifiers.bayes.NaiveBayes;
 import weka.classifiers.functions.Logistic;
 import weka.classifiers.functions.MultilayerPerceptron;
 import weka.classifiers.functions.SMO;
+import weka.classifiers.functions.supportVector.Kernel;
+import weka.classifiers.functions.supportVector.PolyKernel;
+import weka.classifiers.functions.supportVector.RBFKernel;
+import weka.classifiers.functions.supportVector.StringKernel;
 import weka.classifiers.lazy.IBk;
 import weka.classifiers.meta.AdaBoostM1;
 import weka.classifiers.meta.Bagging;
@@ -59,6 +66,7 @@ import weka.classifiers.trees.J48;
 import weka.classifiers.trees.LMT;
 import weka.classifiers.trees.REPTree;
 import weka.classifiers.trees.RandomForest;
+import weka.core.OptionHandler;
 
 public class TestFlowSerialization {
 	
@@ -78,15 +86,40 @@ public class TestFlowSerialization {
 		                            new RandomForest(), new Bagging(), new AdaBoostM1()};
 		                            
 		for (Classifier classif : classifiers){
-			String classname = classif.getClass().getName();
-			Flow result = WekaAlgorithm.serializeClassifier(classif.getClass().getName(), TAGS);
+			Flow result = WekaAlgorithm.serializeClassifier((OptionHandler) classif, TAGS);
 			if (USE_SENTINEL) {
 				result.setName(uuid + "_" + result.getName());
 			}
 			String resultAsString = xstream.toXML(result);
-			UploadFlow uf = connector.flowUpload(Conversion.stringToTempFile(resultAsString, classname, "xml"), null, null);
-			System.out.println(uf.getId());
+			// UploadFlow uf = connector.flowUpload(Conversion.stringToTempFile(resultAsString, result.getName(), "xml"), null, null);
+			// System.out.println(uf.getId());
 			// TODO: now download and check if equal
 		}
+	}
+	
+	@Test
+	public void testFlowWithKernel() throws Exception {
+		Kernel[] kernels = {new PolyKernel(), new RBFKernel(), new StringKernel()};
+		
+		SMO svm = new SMO();
+		for (Kernel k : kernels) {
+			svm.setKernel(k);
+			Flow result = WekaAlgorithm.serializeClassifier(svm, null);
+			
+			// check the name of the kernel
+			String kernelName = k.getClass().getName();
+			String expectedName = svm.getClass().getName() + "(" + kernelName + ")";
+			assert(result.getName().equals(expectedName));
+			
+			// check the parameter:
+			Parameter[] parameters = result.getParameter();
+			Map<String, Parameter> paramMap = new TreeMap<String, Parameter>();
+			for (Parameter p : parameters) {
+				paramMap.put(p.getName(), p);
+				System.out.println(p.getName());
+			}
+			assert(paramMap.get("K").getDefault_value().contains(kernelName));
+		}
+		
 	}
 }

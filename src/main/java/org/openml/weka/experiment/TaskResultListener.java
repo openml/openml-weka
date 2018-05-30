@@ -68,6 +68,7 @@ import weka.classifiers.evaluation.Prediction;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instances;
+import weka.core.OptionHandler;
 import weka.core.RevisionHandler;
 import weka.core.Utils;
 import weka.core.Version;
@@ -275,7 +276,7 @@ public class TaskResultListener extends InstancesResultListener {
 
 			predictions = new Instances("openml_task_" + t.getTask_id() + "_predictions", attInfo, 0);
 
-			Flow find = WekaAlgorithm.serializeClassifier(classifier.getClass().getName(), tags);
+			Flow find = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, tags);
 
 			implementation_id = WekaAlgorithm.getImplementationId(find, classifier, apiconnector);
 			Flow implementation = apiconnector.flowGet(implementation_id);
