@@ -45,7 +45,6 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.openml.apiconnector.algorithms.Conversion;
-import org.openml.apiconnector.algorithms.ParameterType;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Run;
@@ -177,39 +176,49 @@ public class WekaAlgorithm {
 		Map<String, Flow> flowComponents = new LinkedHashMap<String, Flow>();
 		
 		Enumeration<Option> parameters = ((OptionHandler) classifierNew).listOptions();
+		//System.out.println(Arrays.toString(defaultOptions));
 		while(parameters.hasMoreElements()) {
 			Option parameter = parameters.nextElement();
-			// System.out.println("- " + classifierOrig.getClass().getName() + "_" + parameter.name() + ", " + parameter.description());
 			
-			if(parameter.name().trim().equals("")) continue; // filter trash
+			// JvR 30/05/2018: It is my conjecture that all hyperparameters after this one are specific to 
+			// kernel/base-classifier and should not be used in the main classifier. 
+			if (parameter.name().equals("") && parameter.synopsis().startsWith("\nOptions specific to")) {
+				break;
+			}
+			
+			if(parameter.name().trim().equals("")) {
+				throw new Exception("Empty parameter name: " + parameter.name());
+			}
 			String defaultValue = "";
 			String currentValue = "";
 			
 			if(parameter.numArguments() == 0) {
+				//System.out.println(parameter.name() + " = FLAG + value = " + Utils.getFlag(parameter.name(), currentOptions));
 				defaultValue = Utils.getFlag(parameter.name(), defaultOptions) == true ? "true" : "";
 				currentValue = Utils.getFlag(parameter.name(), currentOptions) == true ? "true" : "";
 			} else {
 				defaultValue = Utils.getOption(parameter.name(), defaultOptions);
 				currentValue = Utils.getOption(parameter.name(), currentOptions);
 			}
+			//System.out.println("- " + classifierOrig.getClass().getName() + "_" + parameter.name() + ", " + defaultValue);
 			
 			if (flowParameters.containsKey(parameter.name())) {
 				// some weka classifiers have duplicate options!
-				Parameter other = flowParameters.get(parameter.name());
-				if (parameter.description().equals(other.getDescription()) && other.getDefault_value().equals(defaultValue)) {
-					// same name and same default value, probably same parameter
-					continue;
-				}
+				//Parameter other = flowParameters.get(parameter.name());
+				//if (parameter.description().equals(other.getDescription()) && other.getDefault_value().equals(defaultValue)) {
+				//	// same name and same default value, probably same parameter
+				//	continue;
+				//}
 				throw new Exception("Duplicate parameter: " + parameter.name());
 			}
 				
 			if (defaultValue.length() == 0 || isFloat(defaultValue) || isChar(defaultValue) || isBoolean(defaultValue)) {
 				// Parameter with vanilla option (recognized by integer, float or empty value)
-				ParameterType type;
+				WekaParameterType type;
 				if (parameter.numArguments() == 0) {
-					type = ParameterType.FLAG;
+					type = WekaParameterType.FLAG;
 				} else {
-					type = ParameterType.OPTION;
+					type = WekaParameterType.OPTION;
 				}
 				
 				Parameter current = new Parameter(parameter.name(), type.getName(), defaultValue, parameter.description());
@@ -217,38 +226,36 @@ public class WekaAlgorithm {
 				continue;
 			}
 			
-			try {
-				String[] currentValueSplitted = Utils.splitOptions(currentValue);
-				Class parameterClass = Class.forName(currentValueSplitted[0]);
-				Object parameterObject = Utils.forName(parameterClass, 
-						currentValueSplitted[0], 
-						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
-				ParameterType type;
-				Flow subimplementation;
+			String[] currentValueSplitted = Utils.splitOptions(currentValue);
+			Class parameterClass = Class.forName(currentValueSplitted[0]);
+			Object parameterObject = Utils.forName(parameterClass, 
+					currentValueSplitted[0], 
+					Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
+			WekaParameterType type;
+			Flow subimplementation;
+			
+			if (isAbstractParameter(parameterObject)) {
+				type = WekaParameterType.ARRAY;
+				Parameter current = new Parameter(parameter.name(), type.getName(), null, parameter.description());
+				flowParameters.put(parameter.name(), current);
+			} else if (parameterObject instanceof Classifier) {
+				// Meta algorithms and stuff. All parameters follow from the hyphen in currentOptions
+				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
+				type = WekaParameterType.CLASSIFIER;
 				
-				if(parameterObject instanceof Kernel) {
-					// Kernels etc. All parameters of the kernel are on the same currentOptions entry
-					subimplementation = serializeClassifier((Kernel) parameterObject, tags);
-					type = ParameterType.KERNEL;
-					
-					Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
-					flowParameters.put(parameter.name(), current);
-					flowComponents.put(parameter.name(), subimplementation);
-				} else if (parameterObject instanceof Classifier) {
-					// Meta algorithms and stuff. All parameters follow from the hyphen in currentOptions
-					subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
-					type = ParameterType.BASELEARNER;
-					
-					Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
-					flowParameters.put(parameter.name(), current);
-					flowComponents.put(parameter.name(), subimplementation);
-				} else if (isAbstractParameter(parameterObject)) {
-					type = ParameterType.ARRAY;
-					Parameter current = new Parameter(parameter.name(), type.getName(), null, parameter.description());
-					flowParameters.put(parameter.name(), current);
-				}
-			} catch(ClassNotFoundException e) {
-				throw new Exception("Could not parse parameter into any of the known categories: " + parameter.name());
+				Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
+				flowParameters.put(parameter.name(), current);
+				flowComponents.put(parameter.name(), subimplementation);
+			} else if(parameterObject instanceof Kernel) {
+				// Kernels etc. All parameters of the kernel are on the same currentOptions entry
+				subimplementation = serializeClassifier((Kernel) parameterObject, tags);
+				type = WekaParameterType.OPTIONHANDLER;
+				
+				Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
+				flowParameters.put(parameter.name(), current);
+				flowComponents.put(parameter.name(), subimplementation);
+			} else {
+				throw new Exception("Can not determine type of parameter: " + parameter.name());
 			}
 		}
 		
@@ -291,9 +298,9 @@ public class WekaAlgorithm {
 		if (implementation.getParameter() != null) {
 			for(Parameter p : implementation.getParameter()) {
 				try {
-					ParameterType type = ParameterType.fromString(p.getData_type());
+					WekaParameterType type = WekaParameterType.fromString(p.getData_type());
 					switch(type) {
-					case KERNEL:
+					case OPTIONHANDLER:
 						String kernelvalue = Utils.getOption(p.getName(), parameters);
 						try {
 							String kernelname = kernelvalue.substring(0, kernelvalue.indexOf(' '));
@@ -303,7 +310,7 @@ public class WekaAlgorithm {
 							settings.add(new Parameter_setting(implementation.getId(), p.getName(), kernelname));
 						} catch(ClassNotFoundException e) {}
 						break;
-					case BASELEARNER:
+					case CLASSIFIER:
 						String baselearnervalue = Utils.getOption(p.getName(), parameters);
 						try {
 							String[] baselearnersettings = Utils.partitionOptions(parameters);
@@ -335,7 +342,7 @@ public class WekaAlgorithm {
 							settings.add(new Parameter_setting(implementation.getId(), p.getName(), values.toString()));
 						}
 						break;
-					}	
+					}
 				} catch(Exception e) {/*Parameter not found. */}
 			}
 		}

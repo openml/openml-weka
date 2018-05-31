@@ -49,6 +49,7 @@ import com.thoughtworks.xstream.XStream;
 
 import weka.classifiers.AbstractClassifier;
 import weka.classifiers.Classifier;
+import weka.classifiers.IteratedSingleClassifierEnhancer;
 import weka.classifiers.bayes.NaiveBayes;
 import weka.classifiers.functions.Logistic;
 import weka.classifiers.functions.MultilayerPerceptron;
@@ -92,7 +93,7 @@ public class TestFlowSerialization {
 		String uuid = UUID.randomUUID().toString();
 		Classifier[] classifiers = {new ZeroR(), new OneR(), new JRip(), 
 									new J48(), new REPTree(), new HoeffdingTree(), new LMT(),
-		                            new NaiveBayes(), new IBk(),
+		                            new NaiveBayes(), new IBk(), new SMO(),
 		                            new Logistic(), new MultilayerPerceptron(),
 		                            new RandomForest(), new Bagging(), new AdaBoostM1()};
 		                            
@@ -113,7 +114,6 @@ public class TestFlowSerialization {
 	}
 	
 	@Test
-	@Ignore("SVM has duplicate parameter and underlying function will crash")
 	public void testFlowWithKernel() throws Exception {
 		Kernel[] kernels = {new PolyKernel(), new RBFKernel(), new StringKernel()};
 		
@@ -126,6 +126,7 @@ public class TestFlowSerialization {
 			String kernelName = k.getClass().getName();
 			String expectedName = svm.getClass().getName() + "(" + kernelName + ")";
 			assert(flow.getName().equals(expectedName));
+			//System.out.println( xstream.toXML(flow));
 			
 			// parameter default value
 			assert(getParametersAsMap(flow).get("K").getDefault_value().contains(kernelName));
@@ -134,22 +135,25 @@ public class TestFlowSerialization {
 	
 	@Test
 	public void testFlowWithSubclassifier() throws Exception {
-		Classifier[] baseclassifier = {new REPTree(), new J48(), new NaiveBayes()};
+		Classifier[] baseclassifiers = {new REPTree(), new J48(), new NaiveBayes()};
+		IteratedSingleClassifierEnhancer[] metaclassifiers = {new AdaBoostM1(), new Bagging()};
 		
-		AdaBoostM1 metaclassif = new AdaBoostM1();
-		for (Classifier base : baseclassifier) {
-			metaclassif.setClassifier(base);
-			Flow flow = WekaAlgorithm.serializeClassifier(metaclassif, null);
-			
-			// check the name of the kernel
-			String baseName = base.getClass().getName();
-			String expectedName = metaclassif.getClass().getName() + "(" + baseName + ")";
-			
-			assert(flow.getName().equals(expectedName));
-			
-			// parameter default value
-			assert(getParametersAsMap(flow).get("W").getDefault_value().contains(baseName));
+		for (IteratedSingleClassifierEnhancer metaclassif : metaclassifiers) {
+			for (Classifier baseclassifier : baseclassifiers) {
+				metaclassif.setClassifier(baseclassifier);
+				Flow flow = WekaAlgorithm.serializeClassifier(metaclassif, null);
+				
+				// check the name of the kernel
+				String baseName = baseclassifier.getClass().getName();
+				String expectedName = metaclassif.getClass().getName() + "(" + baseName + ")";
+				
+				assert(flow.getName().equals(expectedName));
+				
+				// parameter default value
+				assert(getParametersAsMap(flow).get("W").getDefault_value().contains(baseName));
+			}
 		}
 	}
+	
 	
 }
