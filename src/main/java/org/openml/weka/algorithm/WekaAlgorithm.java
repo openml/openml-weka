@@ -43,7 +43,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
@@ -184,6 +183,7 @@ public class WekaAlgorithm {
 			// JvR 30/05/2018: It is my conjecture that all hyperparameters after this one are specific to 
 			// kernel/base-classifier and should not be used in the main classifier. 
 			if (parameter.name().equals("") && parameter.synopsis().startsWith("\nOptions specific to")) {
+				// TODO: do something better with lookup in childrens dicts.
 				break;
 			}
 			
@@ -236,14 +236,26 @@ public class WekaAlgorithm {
 				WekaParameterType type = WekaParameterType.ARRAY;
 				Parameter current = new Parameter(parameter.name(), type.getName(), null, parameter.description());
 				flowParameters.put(parameter.name(), current);
-			} else if (Classifier.class.isAssignableFrom(parameterClass)) {
+			} else if (Classifier.class.isAssignableFrom(parameterClass) && currentValueSplitted.length == 1) {
 				// Meta algorithms and stuff. All parameters follow from the hyphen in currentOptions
 				String[] subclassifierOptions = Utils.partitionOptions(currentOptions);
 				Object parameterObject = Utils.forName(Classifier.class, currentValue, Arrays.copyOf(subclassifierOptions, subclassifierOptions.length));
 				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
 				WekaParameterType type = WekaParameterType.CLASSIFIER;
-				String currentParamDefaultValue = currentValue + " " + StringUtils.join(subclassifierOptions, " ");
+				String currentParamDefaultValue = currentValue + " " + Utils.joinOptions(subclassifierOptions);
 				Parameter current = new Parameter(parameter.name(), type.getName(), currentParamDefaultValue, parameter.description());
+				flowParameters.put(parameter.name(), current);
+				flowComponents.put(parameter.name(), subimplementation);
+			} else if (Classifier.class.isAssignableFrom(parameterClass)) { // TODO: not correct way of distinguishing
+				// Classifier that is used for doing something with the original algorithm. 
+				Object parameterObject = Utils.forName(parameterClass, 
+						currentValueSplitted[0], 
+						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
+				
+				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
+				WekaParameterType type = WekaParameterType.OPTIONHANDLER;
+				
+				Parameter current = new Parameter(parameter.name(), type.getName(), currentValue, parameter.description());
 				flowParameters.put(parameter.name(), current);
 				flowComponents.put(parameter.name(), subimplementation);
 			} else if(Kernel.class.isAssignableFrom(parameterClass)) {

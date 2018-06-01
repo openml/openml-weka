@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 package openmlweka;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -70,6 +71,7 @@ import weka.classifiers.trees.REPTree;
 import weka.classifiers.trees.RandomForest;
 import weka.classifiers.trees.RandomTree;
 import weka.core.OptionHandler;
+import weka.core.Utils;
 
 public class TestFlowSerialization {
 	
@@ -98,7 +100,6 @@ public class TestFlowSerialization {
 		                            new RandomForest(), new Bagging(), new AdaBoostM1()};
 		                            
 		for (Classifier classif : classifiers){
-			System.out.println(classif.getClass().getName());
 			Flow uploaded = WekaAlgorithm.serializeClassifier((OptionHandler) classif, TAGS);
 
 			if (USE_SENTINEL) {
@@ -116,15 +117,18 @@ public class TestFlowSerialization {
 	@Test
 	public void testFlowWithKernel() throws Exception {
 		Kernel[] kernels = {new PolyKernel(), new RBFKernel(), new StringKernel()};
+		Classifier calibrator = new Logistic();
 		
 		SMO svm = new SMO();
 		for (Kernel k : kernels) {
 			svm.setKernel(k);
+			svm.setCalibrator(calibrator);
 			Flow flow = WekaAlgorithm.serializeClassifier(svm, null);
 			
 			// check the name of the kernel
+			String calibratorName = calibrator.getClass().getName();
 			String kernelName = k.getClass().getName();
-			String expectedName = svm.getClass().getName() + "(" + kernelName + ")";
+			String expectedName = svm.getClass().getName() + "(" + kernelName + "," + calibratorName + ")";
 			assert(flow.getName().equals(expectedName));
 			// this unit test only works because there is a bug in the current SVM version. 
 			
@@ -172,8 +176,7 @@ public class TestFlowSerialization {
 
 			assert(flow.getName().equals(expectedName));
 			String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
-			String expectedDefaultValue = baseClassifier.getClass().getName() + " " + StringUtils.join(baseClassifierOptions, " ");
-			
+			String expectedDefaultValue = baseClassifier.getClass().getName() + " " + Utils.joinOptions(baseClassifierOptions);
 			assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
 			assert(StringUtils.countMatches(expectedDefaultValue, "--") == currentLevel);
 			addLevelToFlow(metaclassif, flow, currentLevel + 1, maxLevel);
@@ -181,12 +184,25 @@ public class TestFlowSerialization {
 	}
 	
 	@Test
-	public void testFlowMultiLevelFlow() throws Exception {
+	public void testMultiLevelFlow() throws Exception {
 		Classifier[] baseclassifiers = {new REPTree(), new J48(), new RandomTree()}; // base classifier mist have options
 		
 		for (Classifier classifier : baseclassifiers) {
 			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
 			addLevelToFlow(classifier, baseflow, 0, 5);
+		}
+	}
+
+	@Test
+	public void testMultiLevelFlowWithKernel() throws Exception {
+		Kernel[] kernels = {new PolyKernel(), new RBFKernel(), new StringKernel()}; // base classifier mist have options
+		
+		// this unit test should crash in its current state!
+		for (Kernel kernel : kernels) {
+			SMO classifier = new SMO();
+			classifier.setKernel(kernel);
+			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
+			addLevelToFlow(classifier, baseflow, 0, 2);
 		}
 	}
 }
