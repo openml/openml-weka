@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
-import org.junit.Ignore;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
@@ -47,7 +47,6 @@ import org.openml.weka.algorithm.WekaAlgorithm;
 
 import com.thoughtworks.xstream.XStream;
 
-import weka.classifiers.AbstractClassifier;
 import weka.classifiers.Classifier;
 import weka.classifiers.IteratedSingleClassifierEnhancer;
 import weka.classifiers.bayes.NaiveBayes;
@@ -69,6 +68,7 @@ import weka.classifiers.trees.J48;
 import weka.classifiers.trees.LMT;
 import weka.classifiers.trees.REPTree;
 import weka.classifiers.trees.RandomForest;
+import weka.classifiers.trees.RandomTree;
 import weka.core.OptionHandler;
 
 public class TestFlowSerialization {
@@ -126,7 +126,7 @@ public class TestFlowSerialization {
 			String kernelName = k.getClass().getName();
 			String expectedName = svm.getClass().getName() + "(" + kernelName + ")";
 			assert(flow.getName().equals(expectedName));
-			//System.out.println( xstream.toXML(flow));
+			// this unit test only works because there is a bug in the current SVM version. 
 			
 			// parameter default value
 			assert(getParametersAsMap(flow).get("K").getDefault_value().contains(kernelName));
@@ -139,21 +139,54 @@ public class TestFlowSerialization {
 		IteratedSingleClassifierEnhancer[] metaclassifiers = {new AdaBoostM1(), new Bagging()};
 		
 		for (IteratedSingleClassifierEnhancer metaclassif : metaclassifiers) {
-			for (Classifier baseclassifier : baseclassifiers) {
-				metaclassif.setClassifier(baseclassifier);
+			for (Classifier baseClassifier : baseclassifiers) {
+				metaclassif.setClassifier(baseClassifier);
 				Flow flow = WekaAlgorithm.serializeClassifier(metaclassif, null);
 				
 				// check the name of the kernel
-				String baseName = baseclassifier.getClass().getName();
+				String baseName = baseClassifier.getClass().getName();
 				String expectedName = metaclassif.getClass().getName() + "(" + baseName + ")";
 				
 				assert(flow.getName().equals(expectedName));
 				
+				String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
+				String expectedDefaultValue = baseClassifier.getClass().getName() + " " + StringUtils.join(baseClassifierOptions, " ");
+				
 				// parameter default value
-				assert(getParametersAsMap(flow).get("W").getDefault_value().contains(baseName));
+				assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
 			}
 		}
 	}
 	
+	private void addLevelToFlow(Classifier baseClassifier, Flow baselevelFlow, int currentLevel, int maxLevel) throws Exception {
+		IteratedSingleClassifierEnhancer[] metaclassifiers = {new AdaBoostM1(), new Bagging()}; // must have W option for classifier 
+		
+		if (currentLevel > maxLevel) {
+			return;
+		}
+		
+		for (IteratedSingleClassifierEnhancer metaclassif : metaclassifiers) {
+			metaclassif.setClassifier(baseClassifier);
+			Flow flow = WekaAlgorithm.serializeClassifier(metaclassif, null);
+			String expectedName =  metaclassif.getClass().getName() + "(" + baselevelFlow.getName() + ")";
+
+			assert(flow.getName().equals(expectedName));
+			String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
+			String expectedDefaultValue = baseClassifier.getClass().getName() + " " + StringUtils.join(baseClassifierOptions, " ");
+			
+			assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
+			assert(StringUtils.countMatches(expectedDefaultValue, "--") == currentLevel);
+			addLevelToFlow(metaclassif, flow, currentLevel + 1, maxLevel);
+		}
+	}
 	
+	@Test
+	public void testFlowMultiLevelFlow() throws Exception {
+		Classifier[] baseclassifiers = {new REPTree(), new J48(), new RandomTree()}; // base classifier mist have options
+		
+		for (Classifier classifier : baseclassifiers) {
+			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
+			addLevelToFlow(classifier, baseflow, 0, 5);
+		}
+	}
 }

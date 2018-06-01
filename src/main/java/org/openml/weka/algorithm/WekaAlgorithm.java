@@ -43,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
@@ -108,9 +109,9 @@ public class WekaAlgorithm {
 	    return lower == "true" || lower == "false";
 	}
 	
-	public static boolean isAbstractParameter(Object parameterObject) {
+	public static boolean isAbstractParameter(Class parameterClass) {
 		try {
-			if (parameterObject instanceof AbstractParameter) {
+			if (AbstractParameter.class.isAssignableFrom(parameterClass)) {
 				return true;
 			}
 			return false;
@@ -228,30 +229,33 @@ public class WekaAlgorithm {
 			
 			String[] currentValueSplitted = Utils.splitOptions(currentValue);
 			Class parameterClass = Class.forName(currentValueSplitted[0]);
-			Object parameterObject = Utils.forName(parameterClass, 
-					currentValueSplitted[0], 
-					Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
-			WekaParameterType type;
+			
 			Flow subimplementation;
 			
-			if (isAbstractParameter(parameterObject)) {
-				type = WekaParameterType.ARRAY;
+			if (isAbstractParameter(parameterClass)) {
+				WekaParameterType type = WekaParameterType.ARRAY;
 				Parameter current = new Parameter(parameter.name(), type.getName(), null, parameter.description());
 				flowParameters.put(parameter.name(), current);
-			} else if (parameterObject instanceof Classifier) {
+			} else if (Classifier.class.isAssignableFrom(parameterClass)) {
 				// Meta algorithms and stuff. All parameters follow from the hyphen in currentOptions
+				String[] subclassifierOptions = Utils.partitionOptions(currentOptions);
+				Object parameterObject = Utils.forName(Classifier.class, currentValue, Arrays.copyOf(subclassifierOptions, subclassifierOptions.length));
 				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
-				type = WekaParameterType.CLASSIFIER;
-				
-				Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
+				WekaParameterType type = WekaParameterType.CLASSIFIER;
+				String currentParamDefaultValue = currentValue + " " + StringUtils.join(subclassifierOptions, " ");
+				Parameter current = new Parameter(parameter.name(), type.getName(), currentParamDefaultValue, parameter.description());
 				flowParameters.put(parameter.name(), current);
 				flowComponents.put(parameter.name(), subimplementation);
-			} else if(parameterObject instanceof Kernel) {
+			} else if(Kernel.class.isAssignableFrom(parameterClass)) {
 				// Kernels etc. All parameters of the kernel are on the same currentOptions entry
-				subimplementation = serializeClassifier((Kernel) parameterObject, tags);
-				type = WekaParameterType.OPTIONHANDLER;
+				Object parameterObject = Utils.forName(parameterClass, 
+						currentValueSplitted[0], 
+						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
 				
-				Parameter current = new Parameter(parameter.name(), type.getName(), currentValueSplitted[0], parameter.description());
+				subimplementation = serializeClassifier((Kernel) parameterObject, tags);
+				WekaParameterType type = WekaParameterType.OPTIONHANDLER;
+				
+				Parameter current = new Parameter(parameter.name(), type.getName(), currentValue, parameter.description());
 				flowParameters.put(parameter.name(), current);
 				flowComponents.put(parameter.name(), subimplementation);
 			} else {
