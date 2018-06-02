@@ -31,12 +31,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 package openmlweka;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
@@ -72,6 +72,10 @@ import weka.classifiers.trees.RandomForest;
 import weka.classifiers.trees.RandomTree;
 import weka.core.OptionHandler;
 import weka.core.Utils;
+import weka.core.neighboursearch.CoverTree;
+import weka.core.neighboursearch.KDTree;
+import weka.core.neighboursearch.LinearNNSearch;
+import weka.core.neighboursearch.NearestNeighbourSearch;
 
 public class TestFlowSerialization {
 	
@@ -203,6 +207,21 @@ public class TestFlowSerialization {
 			classifier.setKernel(kernel);
 			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
 			addLevelToFlow(classifier, baseflow, 0, 2);
+		}
+	}
+	
+	@Test
+	@Ignore("Fails due to wrong num argument value for parameter A")
+	public void testKnn() throws Exception {
+		IBk knn = new IBk();
+		
+		NearestNeighbourSearch[] nns = {new LinearNNSearch(), new KDTree(), new CoverTree()};
+		
+		for (NearestNeighbourSearch search : nns) {
+			knn.setNearestNeighbourSearchAlgorithm(search);
+			Flow flow = WekaAlgorithm.serializeClassifier(knn, null);
+			System.out.println(flow.getName());
+			assert(flow.getName().contains(nns.getClass().getName()));
 		}
 	}
 }
