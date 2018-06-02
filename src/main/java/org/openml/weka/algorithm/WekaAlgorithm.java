@@ -43,6 +43,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
@@ -108,7 +109,7 @@ public class WekaAlgorithm {
 	    return lower == "true" || lower == "false";
 	}
 	
-	public static boolean isAbstractParameter(Class parameterClass) {
+	public static boolean isAbstractParameter(Class<?> parameterClass) {
 		try {
 			if (AbstractParameter.class.isAssignableFrom(parameterClass)) {
 				return true;
@@ -179,12 +180,15 @@ public class WekaAlgorithm {
 		//System.out.println(Arrays.toString(defaultOptions));
 		while(parameters.hasMoreElements()) {
 			Option parameter = parameters.nextElement();
-			
 			// JvR 30/05/2018: It is my conjecture that all hyperparameters after this one are specific to 
 			// kernel/base-classifier and should not be used in the main classifier. 
 			if (parameter.name().equals("") && parameter.synopsis().startsWith("\nOptions specific to")) {
-				// TODO: do something better with lookup in childrens dicts.
+				// TODO: do something better with lookup in childeren's dicts.
 				break;
+			}
+
+			if (flowParameters.containsKey(parameter.name())) {
+				throw new Exception("Duplicate parameter: " + parameter.name());
 			}
 			
 			if(parameter.name().trim().equals("")) {
@@ -201,17 +205,7 @@ public class WekaAlgorithm {
 				defaultValue = Utils.getOption(parameter.name(), defaultOptions);
 				currentValue = Utils.getOption(parameter.name(), currentOptions);
 			}
-			//System.out.println("- " + classifierOrig.getClass().getName() + "_" + parameter.name() + ", " + defaultValue);
-			
-			if (flowParameters.containsKey(parameter.name())) {
-				// some weka classifiers have duplicate options!
-				//Parameter other = flowParameters.get(parameter.name());
-				//if (parameter.description().equals(other.getDescription()) && other.getDefault_value().equals(defaultValue)) {
-				//	// same name and same default value, probably same parameter
-				//	continue;
-				//}
-				throw new Exception("Duplicate parameter: " + parameter.name());
-			}
+			// System.out.println("- " + classifierOrig.getClass().getName() + "_" + parameter.name() + " (" + parameter.numArguments() + " args), " + defaultValue);
 				
 			if (defaultValue.length() == 0 || isFloat(defaultValue) || isChar(defaultValue) || isBoolean(defaultValue)) {
 				// Parameter with vanilla option (recognized by integer, float or empty value)
@@ -228,7 +222,7 @@ public class WekaAlgorithm {
 			}
 			
 			String[] currentValueSplitted = Utils.splitOptions(currentValue);
-			Class parameterClass = Class.forName(currentValueSplitted[0]);
+			Class<?> parameterClass = Class.forName(currentValueSplitted[0]);
 			
 			Flow subimplementation;
 			
@@ -309,30 +303,56 @@ public class WekaAlgorithm {
 		return i;
 	}
 	
-	public static ArrayList<Parameter_setting> getParameterSetting(String[] parameters, Flow implementation) {
+	public static OptionHandler deserializeClassifier(Flow f) throws Exception {
+		String baseclass = f.getName().split("\\(")[0];
+		String[] primaryOptions = new String[0];
+		String[] secondaryOptions = new String[0];
+		
+		for (Parameter p : f.getParameter()) {
+			WekaParameterType type = WekaParameterType.fromString(p.getData_type());
+			switch(type) {
+				case CLASSIFIER:
+					String[] currentValueSplitted = Utils.splitOptions(p.getDefault_value());
+					String[] exceptFirst = Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length);
+					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
+					primaryOptions = ArrayUtils.add(primaryOptions, currentValueSplitted[0]);
+					secondaryOptions = ArrayUtils.add(secondaryOptions, "--");
+					secondaryOptions = ArrayUtils.addAll(secondaryOptions, exceptFirst);
+					break;
+				case OPTIONHANDLER:
+					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
+					primaryOptions = ArrayUtils.add(primaryOptions, p.getDefault_value());
+					break;
+				default:
+					break;
+			}
+		}
+		
+		String[] allOptions = ArrayUtils.addAll(primaryOptions, secondaryOptions);
+		// System.out.println(baseclass + " " + Arrays.toString(allOptions));
+		OptionHandler result = (OptionHandler) Utils.forName(OptionHandler.class, baseclass, allOptions);
+		return result;
+	}
+	
+	public static ArrayList<Parameter_setting> getParameterSetting(String[] parameters, Flow implementation) throws Exception {
 		ArrayList<Parameter_setting> settings = new ArrayList<Parameter_setting>();
 		if (implementation.getParameter() != null) {
 			for(Parameter p : implementation.getParameter()) {
-				try {
-					WekaParameterType type = WekaParameterType.fromString(p.getData_type());
-					switch(type) {
-					case OPTIONHANDLER:
-						String kernelvalue = Utils.getOption(p.getName(), parameters);
-						try {
-							String kernelname = kernelvalue.substring(0, kernelvalue.indexOf(' '));
-							String[] kernelsettings = Utils.splitOptions(kernelvalue.substring(kernelvalue.indexOf(' ')+1));
-							ArrayList<Parameter_setting> kernelresult = getParameterSetting(kernelsettings, implementation.getSubImplementation(p.getName()));
-							settings.addAll(kernelresult);
-							settings.add(new Parameter_setting(implementation.getId(), p.getName(), kernelname));
-						} catch(ClassNotFoundException e) {}
-						break;
+				WekaParameterType type = WekaParameterType.fromString(p.getData_type());
+				switch(type) {
 					case CLASSIFIER:
 						String baselearnervalue = Utils.getOption(p.getName(), parameters);
-						try {
-							String[] baselearnersettings = Utils.partitionOptions(parameters);
-							settings.addAll(getParameterSetting(baselearnersettings, implementation.getSubImplementation(p.getName())));
-							settings.add(new Parameter_setting(implementation.getId(), p.getName(), baselearnervalue));
-						} catch(ClassNotFoundException e) {}
+						String[] baselearnersettings = Utils.partitionOptions(parameters);
+						settings.addAll(getParameterSetting(baselearnersettings, implementation.getSubImplementation(p.getName())));
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), baselearnervalue));
+						break;
+					case OPTIONHANDLER:
+						String kernelvalue = Utils.getOption(p.getName(), parameters);
+						String kernelname = kernelvalue.substring(0, kernelvalue.indexOf(' '));
+						String[] kernelsettings = Utils.splitOptions(kernelvalue.substring(kernelvalue.indexOf(' ')+1));
+						ArrayList<Parameter_setting> kernelresult = getParameterSetting(kernelsettings, implementation.getSubImplementation(p.getName()));
+						settings.addAll(kernelresult);
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), kernelname));
 						break;
 					case OPTION:
 						String optionvalue = Utils.getOption(p.getName(), parameters);
@@ -342,9 +362,7 @@ public class WekaAlgorithm {
 						break;
 					case FLAG:
 						boolean flagvalue = Utils.getFlag(p.getName(), parameters);
-						if(flagvalue) {
-							settings.add(new Parameter_setting(implementation.getId(), p.getName(), "true"));
-						}
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), flagvalue ? "true" : "false"));
 						break;
 					case ARRAY:
 						List<String> values = new ArrayList<String>();
@@ -358,8 +376,7 @@ public class WekaAlgorithm {
 							settings.add(new Parameter_setting(implementation.getId(), p.getName(), values.toString()));
 						}
 						break;
-					}
-				} catch(Exception e) {/*Parameter not found. */}
+				}
 			}
 		}
 		return settings;

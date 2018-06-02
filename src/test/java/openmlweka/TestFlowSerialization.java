@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 package openmlweka;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -97,24 +98,37 @@ public class TestFlowSerialization {
 	@Test
 	public void testSimpleFlow() throws Exception {
 		String uuid = UUID.randomUUID().toString();
-		Classifier[] classifiers = {new ZeroR(), new OneR(), new JRip(), 
+		OptionHandler[] classifiers = {new ZeroR(), new OneR(), new JRip(), 
 									new J48(), new REPTree(), new HoeffdingTree(), new LMT(),
 		                            new NaiveBayes(), new IBk(), new SMO(),
 		                            new Logistic(), new MultilayerPerceptron(),
 		                            new RandomForest(), new Bagging(), new AdaBoostM1()};
 		                            
-		for (Classifier classif : classifiers){
-			Flow uploaded = WekaAlgorithm.serializeClassifier((OptionHandler) classif, TAGS);
+		for (OptionHandler classif : classifiers){
+			Flow uploaded = WekaAlgorithm.serializeClassifier(classif, TAGS);
 
 			if (USE_SENTINEL) {
-				uploaded.setName(uuid + "_" + uploaded.getName());
+				uploaded.setName(uploaded.getName() + "_" + uuid);
 			}
-			String resultAsString = xstream.toXML(uploaded);
-			UploadFlow uf = connector.flowUpload(Conversion.stringToTempFile(resultAsString, uploaded.getName(), "xml"), null, null);
+			UploadFlow uf = connector.flowUpload(Conversion.stringToTempFile(xstream.toXML(uploaded), uploaded.getName(), "xml"), null, null);
 			Flow downloaded = connector.flowGet(uf.getId());
+			if (USE_SENTINEL) {
+				downloaded.setName(downloaded.getName().substring(0, downloaded.getName().indexOf("_" + uuid)));
+				uploaded.setName(uploaded.getName().substring(0, uploaded.getName().indexOf("_" + uuid)));
+			}
 			
-			// check parameter values
+			// check parameter names equals
 			assert(getParametersAsMap(downloaded).keySet().equals(getParametersAsMap(uploaded).keySet()));
+			
+			// check deserialized flow
+			String uploadedAsString = xstream.toXML(uploaded);
+			OptionHandler retrievedFlow = WekaAlgorithm.deserializeClassifier(downloaded);
+			Flow reconstructed = WekaAlgorithm.serializeClassifier(retrievedFlow, TAGS);
+			String reconstructedAsString = xstream.toXML(reconstructed);
+			assert(reconstructedAsString.equals(uploadedAsString));
+			
+			// check options are equal
+			assert(Arrays.equals(classif.getOptions(), retrievedFlow.getOptions()));
 		}
 	}
 	
@@ -162,6 +176,14 @@ public class TestFlowSerialization {
 				
 				// parameter default value
 				assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
+				
+				// check if can re-instantiate
+				OptionHandler deserialized = WekaAlgorithm.deserializeClassifier(flow);
+				Flow deserializedFlow = WekaAlgorithm.serializeClassifier(deserialized, null);
+				assert(xstream.toXML(deserializedFlow).equals(xstream.toXML(flow)));
+				
+				// check options are equal
+				assert(Arrays.equals(metaclassif.getOptions(), deserialized.getOptions()));
 			}
 		}
 	}
@@ -176,13 +198,26 @@ public class TestFlowSerialization {
 		for (IteratedSingleClassifierEnhancer metaclassif : metaclassifiers) {
 			metaclassif.setClassifier(baseClassifier);
 			Flow flow = WekaAlgorithm.serializeClassifier(metaclassif, null);
+			
+			// check if name is ok
 			String expectedName =  metaclassif.getClass().getName() + "(" + baselevelFlow.getName() + ")";
-
 			assert(flow.getName().equals(expectedName));
+			
+			// check if default value is OK
 			String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
 			String expectedDefaultValue = baseClassifier.getClass().getName() + " " + Utils.joinOptions(baseClassifierOptions);
 			assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
 			assert(StringUtils.countMatches(expectedDefaultValue, "--") == currentLevel);
+			
+			// check if can re-instantiate
+			OptionHandler deserialized = WekaAlgorithm.deserializeClassifier(flow);
+			Flow deserializedFlow = WekaAlgorithm.serializeClassifier(deserialized, null);
+			assert(xstream.toXML(deserializedFlow).equals(xstream.toXML(flow)));
+			
+			// check options are equal
+			assert(Arrays.equals(metaclassif.getOptions(), deserialized.getOptions()));
+			
+			// continue to the next level 
 			addLevelToFlow(metaclassif, flow, currentLevel + 1, maxLevel);
 		}
 	}
@@ -220,8 +255,15 @@ public class TestFlowSerialization {
 		for (NearestNeighbourSearch search : nns) {
 			knn.setNearestNeighbourSearchAlgorithm(search);
 			Flow flow = WekaAlgorithm.serializeClassifier(knn, null);
-			System.out.println(flow.getName());
 			assert(flow.getName().contains(nns.getClass().getName()));
+			
+			// check if can re-instantiate
+			OptionHandler deserialized = WekaAlgorithm.deserializeClassifier(flow);
+			Flow deserializedFlow = WekaAlgorithm.serializeClassifier(deserialized, null);
+			assert(xstream.toXML(deserializedFlow).equals(xstream.toXML(flow)));
+			
+			// check options are equal
+			assert(Arrays.equals(knn.getOptions(), deserialized.getOptions()));
 		}
 	}
 }
