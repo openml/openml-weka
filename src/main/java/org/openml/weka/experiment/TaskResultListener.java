@@ -171,7 +171,7 @@ public class TaskResultListener extends InstancesResultListener {
 		SciMark benchmarker = SciMark.getInstance();
 		oet.getRun().addOutputEvaluation(new EvaluationScore("os_information", null, null, "['" + StringUtils.join(benchmarker.getOsInfo(), "', '") + "']"));
 		if (skipJvmBenchmark == false) {
-			oet.getRun().addOutputEvaluation(new EvaluationScore("scimark_benchmark", benchmarker.getResult() + "", null, "[" + StringUtils.join(benchmarker.getStringArray(), ", ") + "]"));
+			oet.getRun().addOutputEvaluation(new EvaluationScore("scimark_benchmark", benchmarker.getResult(), null, "[" + StringUtils.join(benchmarker.getStringArray(), ", ") + "]"));
 		}
 		tmpPredictionsFile = Conversion.stringToTempFile(oet.getPredictions().toString(), "weka_generated_predictions", Constants.DATASET_FORMAT);
 		tmpDescriptionFile = Conversion.stringToTempFile(xstream.toXML(oet.getRun()), "weka_generated_run", "xml");
@@ -328,7 +328,7 @@ public class TaskResultListener extends InstancesResultListener {
 			for (String m : userMeasures.keySet()) {
 				MetricScore score = userMeasures.get(m);
 
-				getRun().addOutputEvaluation(new EvaluationScore(m, score.getScore() + "", null, repeat, fold, sample, null));
+				getRun().addOutputEvaluation(new EvaluationScore(m, score.getScore(), null, repeat, fold, sample, null));
 			}
 		}
 
@@ -344,9 +344,9 @@ public class TaskResultListener extends InstancesResultListener {
 				Double totalTimeTesting = (Double) splitEvaluatorResults.get(keyTesting);
 				Double totalTime = totalTimeTesting + totalTimeTraining;
 				
-				getRun().addOutputEvaluation(new EvaluationScore(keyTesting.toLowerCase(), "" + totalTimeTesting, null, null));
-				getRun().addOutputEvaluation(new EvaluationScore(keyTraining.toLowerCase(), "" + totalTimeTraining, null, null));
-				getRun().addOutputEvaluation(new EvaluationScore("usercpu_time_millis", "" + totalTime, null, null));
+				getRun().addOutputEvaluation(new EvaluationScore(keyTesting.toLowerCase(), totalTimeTesting, null, null));
+				getRun().addOutputEvaluation(new EvaluationScore(keyTraining.toLowerCase(), totalTimeTraining, null, null));
+				getRun().addOutputEvaluation(new EvaluationScore("usercpu_time_millis", totalTime, null, null));
 			}
 
 			try {

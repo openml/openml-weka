@@ -53,6 +53,7 @@ import org.openml.apiconnector.xml.Flow.Parameter;
 import org.openml.apiconnector.xml.FlowExists;
 import org.openml.apiconnector.xml.Run.Parameter_setting;
 import org.openml.apiconnector.xml.SetupExists;
+import org.openml.apiconnector.xml.SetupParameters;
 import org.openml.apiconnector.xml.UploadFlow;
 import org.openml.apiconnector.xstream.XstreamXmlMapping;
 
@@ -294,7 +295,7 @@ public class WekaAlgorithm {
 			}
 		}
 		for (String key : flowComponents.keySet()) {
-			i.addComponent(key, flowComponents.get(key), false);
+			i.addComponent(key, flowComponents.get(key));
 		}
 		for (Parameter p : flowParameters.values()) {
 			i.addParameter(p);
@@ -332,6 +333,66 @@ public class WekaAlgorithm {
 		// System.out.println(baseclass + " " + Arrays.toString(allOptions));
 		OptionHandler result = (OptionHandler) Utils.forName(OptionHandler.class, baseclass, allOptions);
 		return result;
+	}
+	
+	
+	public static OptionHandler deserializeSetup(SetupParameters setup, Flow f) throws Exception {
+		String baseclass = f.getName().split("\\(")[0];
+		String[] allOptions = setupToOptionArray(setup, f);
+		System.out.println(baseclass + " " + Arrays.toString(allOptions));
+		OptionHandler result = (OptionHandler) Utils.forName(OptionHandler.class, baseclass, allOptions);
+		return result;
+	}
+
+	private static String[] setupToOptionArray(SetupParameters setup, Flow f) throws Exception {
+		if (f.getId() == null) {
+			throw new Exception("Can only deserialize setups based on flows with ids. Flow: " + f.getName());
+		}
+		String[] primaryOptions = new String[0];
+		String[] secondaryOptions = new String[0];
+		
+		for (SetupParameters.Parameter p : setup.getParameters()) {
+			// System.out.println(p.getParameter_name() + " " + p.getFlow_id() + " - " + f.getId());
+			if (! p.getFlow_id().equals(f.getId())) {
+				continue;
+			}
+			WekaParameterType type = WekaParameterType.fromString(p.getData_type());
+			String[] currentValueSplitted = Utils.splitOptions(p.getValue());
+			switch(type) {
+				case CLASSIFIER:
+					// System.out.println(p.getParameter_name() + " - classifier");
+					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
+					primaryOptions = ArrayUtils.add(primaryOptions, currentValueSplitted[0]);
+					secondaryOptions = ArrayUtils.add(secondaryOptions, "--");
+					secondaryOptions = ArrayUtils.addAll(secondaryOptions, setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name())));
+					break;
+				case OPTIONHANDLER:
+					// System.out.println(p.getParameter_name() + " - optionhandler");
+					String[] subOptions = setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name()));
+					String subWithOptions = currentValueSplitted[0] + " " + StringUtils.join(subOptions, " ");
+					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
+					primaryOptions = ArrayUtils.add(primaryOptions, subWithOptions);
+					break;
+				case OPTION:
+					// System.out.println(p.getParameter_name() + " - option");
+					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
+					primaryOptions = ArrayUtils.add(primaryOptions, p.getValue());
+					break;
+				case FLAG:
+					// System.out.println(p.getParameter_name() + " - flag");
+					if (p.getValue().equals("true")) {
+						primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
+					}
+					break;
+				case ARRAY:
+					// System.out.println(p.getParameter_name() + " - array");
+					// break;
+					throw new Exception("Not implemented yet. ");
+			}
+		}
+		
+		String[] allOptions = ArrayUtils.addAll(primaryOptions, secondaryOptions);
+		return allOptions;
 	}
 	
 	public static ArrayList<Parameter_setting> getParameterSetting(String[] parameters, Flow implementation) throws Exception {

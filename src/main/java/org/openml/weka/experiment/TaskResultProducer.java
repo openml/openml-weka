@@ -43,7 +43,6 @@ import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.models.MetricScore;
 import org.openml.apiconnector.xml.Task;
 import org.openml.apiconnector.xml.Task.Input.Data_set;
-import org.openml.apiconnector.xml.Task.Input.Estimation_procedure;
 import org.openml.weka.algorithm.DataSplits;
 import org.openml.weka.algorithm.InstancesHelper;
 import org.openml.weka.algorithm.OptimizationTrace;
@@ -118,9 +117,7 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 		Data_set ds = TaskInformation.getSourceData(m_Task);
 		int targetAttributeIndex = InstancesHelper.getAttributeIndex(m_Instances, ds.getTarget_feature());
 		AttributeStats targetStats = m_Instances.attributeStats(targetAttributeIndex);
-		
-		Estimation_procedure ep = TaskInformation.getEstimationProcedure(m_Task);
-		Instances splits = new Instances(new FileReader(ep.getDataSplits(m_Task.getTask_id())));
+		Instances splits = new Instances(new FileReader(apiconnector.taskSplitsGet(m_Task)));
 
 		missingLabels = targetStats.missingCount > 0;
 		m_DataSplits = new DataSplits(m_Task, m_Instances, splits);
