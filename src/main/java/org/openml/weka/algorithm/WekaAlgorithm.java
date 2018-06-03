@@ -68,6 +68,7 @@ import weka.core.Utils;
 import weka.core.Version;
 import weka.core.setupgenerator.AbstractParameter;
 import weka.experiment.SplitEvaluator;
+import weka.filters.Filter;
 
 public class WekaAlgorithm {
 	
@@ -243,26 +244,16 @@ public class WekaAlgorithm {
 				Parameter current = new Parameter(parameter.name(), type.getName(), currentParamDefaultValue, parameter.description());
 				flowParameters.put(parameter.name(), current);
 				flowComponents.put(parameter.name(), subimplementation);
-			} else if (Classifier.class.isAssignableFrom(parameterClass)) { // TODO: not correct way of distinguishing
-				// Classifier that is used for doing something with the original algorithm. 
-				Object parameterObject = Utils.forName(parameterClass, 
-						currentValueSplitted[0], 
-						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
-				
-				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
-				WekaParameterType type = WekaParameterType.KERNEL;
-				
-				Parameter current = new Parameter(parameter.name(), type.getName(), currentValue, parameter.description());
-				flowParameters.put(parameter.name(), current);
-				flowComponents.put(parameter.name(), subimplementation);
-			} else if(Kernel.class.isAssignableFrom(parameterClass)) {
+			} else if (Kernel.class.isAssignableFrom(parameterClass) || 
+					Filter.class.isAssignableFrom(parameterClass) || 
+					Classifier.class.isAssignableFrom(parameterClass)) { // TODO: not correct way of discriminating
 				// Kernels etc. All parameters of the kernel are on the same currentOptions entry
 				Object parameterObject = Utils.forName(parameterClass, 
 						currentValueSplitted[0], 
 						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
 				
-				subimplementation = serializeClassifier((Kernel) parameterObject, tags);
-				WekaParameterType type = WekaParameterType.KERNEL;
+				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
+				WekaParameterType type = WekaParameterType.OPTIONHANDLER;
 				
 				Parameter current = new Parameter(parameter.name(), type.getName(), currentValue, parameter.description());
 				flowParameters.put(parameter.name(), current);
@@ -322,7 +313,7 @@ public class WekaAlgorithm {
 					secondaryOptions = ArrayUtils.add(secondaryOptions, "--");
 					secondaryOptions = ArrayUtils.addAll(secondaryOptions, exceptFirst);
 					break;
-				case KERNEL:
+				case OPTIONHANDLER:
 					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
 					primaryOptions = ArrayUtils.add(primaryOptions, p.getDefault_value());
 					break;
@@ -368,7 +359,7 @@ public class WekaAlgorithm {
 					secondaryOptions = ArrayUtils.add(secondaryOptions, "--");
 					secondaryOptions = ArrayUtils.addAll(secondaryOptions, setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name())));
 					break;
-				case KERNEL:
+				case OPTIONHANDLER:
 					// System.out.println(p.getParameter_name() + " - kernel");
 					String[] subOptions = setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name()));
 					String subWithOptions = currentValueSplitted[0] + " " + StringUtils.join(subOptions, " ");
@@ -414,7 +405,7 @@ public class WekaAlgorithm {
 						settings.addAll(getParameterSetting(baselearnersettings, implementation.getSubImplementation(p.getName())));
 						settings.add(new Parameter_setting(implementation.getId(), p.getName(), baselearnervalue));
 						break;
-					case KERNEL:
+					case OPTIONHANDLER:
 						String kernelvalue = Utils.getOption(p.getName(), parameters);
 						String kernelname = kernelvalue.substring(0, kernelvalue.indexOf(' '));
 						String[] kernelsettings = Utils.splitOptions(kernelvalue.substring(kernelvalue.indexOf(' ')+1));

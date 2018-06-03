@@ -62,6 +62,7 @@ import weka.classifiers.functions.supportVector.StringKernel;
 import weka.classifiers.lazy.IBk;
 import weka.classifiers.meta.AdaBoostM1;
 import weka.classifiers.meta.Bagging;
+import weka.classifiers.meta.FilteredClassifier;
 import weka.classifiers.rules.JRip;
 import weka.classifiers.rules.OneR;
 import weka.classifiers.rules.ZeroR;
@@ -77,6 +78,11 @@ import weka.core.neighboursearch.CoverTree;
 import weka.core.neighboursearch.KDTree;
 import weka.core.neighboursearch.LinearNNSearch;
 import weka.core.neighboursearch.NearestNeighbourSearch;
+import weka.filters.Filter;
+import weka.filters.MultiFilter;
+import weka.filters.unsupervised.attribute.Normalize;
+import weka.filters.unsupervised.attribute.RemoveUseless;
+import weka.filters.unsupervised.attribute.ReplaceMissingValues;
 
 public class TestFlowSerialization {
 	
@@ -102,7 +108,8 @@ public class TestFlowSerialization {
 									new J48(), new REPTree(), new HoeffdingTree(), new LMT(),
 		                            new NaiveBayes(), new IBk(), new SMO(),
 		                            new Logistic(), new MultilayerPerceptron(),
-		                            new RandomForest(), new Bagging(), new AdaBoostM1()};
+		                            new RandomForest(), new Bagging(), new AdaBoostM1(), 
+		                            new FilteredClassifier()};
 		                            
 		for (OptionHandler classif : classifiers){
 			Flow uploaded = WekaAlgorithm.serializeClassifier(classif, TAGS);
@@ -229,6 +236,19 @@ public class TestFlowSerialization {
 		for (Classifier classifier : baseclassifiers) {
 			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
 			addLevelToFlow(classifier, baseflow, 0, 5);
+		}
+	}
+	
+	@Test
+	public void testMultiLevelFlowWithFilter() throws Exception {
+		Filter[] filters = {new ReplaceMissingValues(), new RemoveUseless(), new Normalize(), new MultiFilter()};
+
+		FilteredClassifier classifier = new FilteredClassifier();
+		for (Filter filter : filters) {
+			classifier.setFilter(filter);
+			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
+			// this one starts at level 1, as the "base classifier" already has a "--" notation
+			addLevelToFlow(classifier, baseflow, 1, 3);
 		}
 	}
 

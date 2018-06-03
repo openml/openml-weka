@@ -24,8 +24,6 @@ import weka.classifiers.meta.multisearch.RandomSearch;
 import weka.classifiers.trees.J48;
 import weka.classifiers.trees.RandomForest;
 import weka.core.OptionHandler;
-import weka.core.SelectedTag;
-import weka.core.Tag;
 import weka.core.setupgenerator.AbstractParameter;
 import weka.core.setupgenerator.MathParameter;
 import weka.filters.Filter;
