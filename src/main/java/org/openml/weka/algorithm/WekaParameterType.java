@@ -2,7 +2,7 @@ package org.openml.weka.algorithm;
 
 
 public enum WekaParameterType {
-	FLAG("flag"), OPTIONHANDLER("optionhandler"), CLASSIFIER("classifier"), OPTION("option"), ARRAY("array");
+	FLAG("flag"), KERNEL("kernel"), CLASSIFIER("classifier"), OPTION("option"), ARRAY("array");
 
 	private String text;
 

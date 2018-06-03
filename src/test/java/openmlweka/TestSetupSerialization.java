@@ -18,8 +18,21 @@ import weka.classifiers.Classifier;
 import weka.classifiers.functions.SMO;
 import weka.classifiers.functions.supportVector.RBFKernel;
 import weka.classifiers.meta.Bagging;
+import weka.classifiers.meta.FilteredClassifier;
+import weka.classifiers.meta.MultiSearch;
+import weka.classifiers.meta.multisearch.RandomSearch;
 import weka.classifiers.trees.J48;
+import weka.classifiers.trees.RandomForest;
 import weka.core.OptionHandler;
+import weka.core.SelectedTag;
+import weka.core.Tag;
+import weka.core.setupgenerator.AbstractParameter;
+import weka.core.setupgenerator.MathParameter;
+import weka.filters.Filter;
+import weka.filters.MultiFilter;
+import weka.filters.unsupervised.attribute.Normalize;
+import weka.filters.unsupervised.attribute.RemoveUseless;
+import weka.filters.unsupervised.attribute.ReplaceMissingValues;
 
 public class TestSetupSerialization {
 
@@ -79,7 +92,7 @@ public class TestSetupSerialization {
 		classifier.setConfidenceFactor(0.03F);
 		classifier.setMinNumObj(10);
 		
-		addLevel(classifier, 0, 3);
+		addLevel(classifier, 0, 2);
 	}
 	
 	@Test
@@ -91,5 +104,54 @@ public class TestSetupSerialization {
 		classifier.setC(0.21);
 		
 		addLevel(classifier, 0, 2);
+	}
+	
+	@Test
+	public void testRandomSearchRandomForest() throws Exception {
+		RandomForest baseclassifier = new RandomForest();
+		baseclassifier.setNumIterations(16);
+		
+		Filter[] filter = new Filter[3];
+		filter[0] = new ReplaceMissingValues();
+		filter[1] = new RemoveUseless();
+		filter[2] = new Normalize();
+		
+		MultiFilter multifilter = new MultiFilter();
+		multifilter.setFilters(filter);
+		
+		FilteredClassifier classifier = new FilteredClassifier();
+		classifier.setFilter(multifilter);
+		classifier.setClassifier(baseclassifier);
+		
+		RandomSearch randomSearchAlgorithm = new RandomSearch();
+		randomSearchAlgorithm.setNumIterations(10);
+		randomSearchAlgorithm.setSearchSpaceNumFolds(3);
+		
+		MathParameter numFeatures = new MathParameter();
+		numFeatures.setProperty("classifier.numFeatures");
+		numFeatures.setBase(1);
+		numFeatures.setExpression("I");
+		numFeatures.setMin(0.1);
+		numFeatures.setMax(0.9);
+		numFeatures.setStep(0.1);
+
+		MathParameter maxDepth = new MathParameter();
+		maxDepth.setProperty("classifier.maxDepth");
+		maxDepth.setBase(1);
+		maxDepth.setExpression("I");
+		maxDepth.setMin(0);
+		maxDepth.setMax(10);
+		maxDepth.setStep(1);
+		
+		AbstractParameter[] searchParameters = {numFeatures, maxDepth};
+		
+		MultiSearch search = new MultiSearch();
+		String[] evaluation = {"-E", "ACC"};
+		search.setOptions(evaluation);
+		search.setClassifier(baseclassifier);
+		search.setAlgorithm(randomSearchAlgorithm);
+		search.setSearchParameters(searchParameters);
+		
+		deserializeSetup(search);
 	}
 }

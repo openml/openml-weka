@@ -45,6 +45,7 @@ import java.util.Map;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
@@ -208,8 +209,9 @@ public class WekaAlgorithm {
 			}
 			// System.out.println("- " + classifierOrig.getClass().getName() + "_" + parameter.name() + " (" + parameter.numArguments() + " args), " + defaultValue);
 				
-			if (defaultValue.length() == 0 || isFloat(defaultValue) || isChar(defaultValue) || isBoolean(defaultValue)) {
+			if (defaultValue.length() == 0 || isFloat(defaultValue) || isChar(defaultValue) || isBoolean(defaultValue) || !defaultValue.startsWith("weka.")) {
 				// Parameter with vanilla option (recognized by integer, float or empty value)
+				// also string values that do not start with "weka." are considered "normal parameters" (if a string value starts with "weka." it is probably a class)
 				WekaParameterType type;
 				if (parameter.numArguments() == 0) {
 					type = WekaParameterType.FLAG;
@@ -248,7 +250,7 @@ public class WekaAlgorithm {
 						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
 				
 				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
-				WekaParameterType type = WekaParameterType.OPTIONHANDLER;
+				WekaParameterType type = WekaParameterType.KERNEL;
 				
 				Parameter current = new Parameter(parameter.name(), type.getName(), currentValue, parameter.description());
 				flowParameters.put(parameter.name(), current);
@@ -260,13 +262,13 @@ public class WekaAlgorithm {
 						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
 				
 				subimplementation = serializeClassifier((Kernel) parameterObject, tags);
-				WekaParameterType type = WekaParameterType.OPTIONHANDLER;
+				WekaParameterType type = WekaParameterType.KERNEL;
 				
 				Parameter current = new Parameter(parameter.name(), type.getName(), currentValue, parameter.description());
 				flowParameters.put(parameter.name(), current);
 				flowComponents.put(parameter.name(), subimplementation);
 			} else {
-				throw new Exception("Can not determine type of parameter: " + parameter.name());
+				throw new Exception("Classifier contains an unsupported parameter type: " + currentValueSplitted[0]);
 			}
 		}
 		
@@ -320,7 +322,7 @@ public class WekaAlgorithm {
 					secondaryOptions = ArrayUtils.add(secondaryOptions, "--");
 					secondaryOptions = ArrayUtils.addAll(secondaryOptions, exceptFirst);
 					break;
-				case OPTIONHANDLER:
+				case KERNEL:
 					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
 					primaryOptions = ArrayUtils.add(primaryOptions, p.getDefault_value());
 					break;
@@ -366,8 +368,8 @@ public class WekaAlgorithm {
 					secondaryOptions = ArrayUtils.add(secondaryOptions, "--");
 					secondaryOptions = ArrayUtils.addAll(secondaryOptions, setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name())));
 					break;
-				case OPTIONHANDLER:
-					// System.out.println(p.getParameter_name() + " - optionhandler");
+				case KERNEL:
+					// System.out.println(p.getParameter_name() + " - kernel");
 					String[] subOptions = setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name()));
 					String subWithOptions = currentValueSplitted[0] + " " + StringUtils.join(subOptions, " ");
 					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
@@ -387,7 +389,12 @@ public class WekaAlgorithm {
 				case ARRAY:
 					// System.out.println(p.getParameter_name() + " - array");
 					// break;
-					throw new Exception("Not implemented yet. ");
+					JSONArray allParams = new JSONArray(p.getValue());
+					for (int i = 0; i < allParams.length(); i++) {
+						primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
+						primaryOptions = ArrayUtils.add(primaryOptions, allParams.getString(i));
+					}
+					break;
 			}
 		}
 		
@@ -407,7 +414,7 @@ public class WekaAlgorithm {
 						settings.addAll(getParameterSetting(baselearnersettings, implementation.getSubImplementation(p.getName())));
 						settings.add(new Parameter_setting(implementation.getId(), p.getName(), baselearnervalue));
 						break;
-					case OPTIONHANDLER:
+					case KERNEL:
 						String kernelvalue = Utils.getOption(p.getName(), parameters);
 						String kernelname = kernelvalue.substring(0, kernelvalue.indexOf(' '));
 						String[] kernelsettings = Utils.splitOptions(kernelvalue.substring(kernelvalue.indexOf(' ')+1));
