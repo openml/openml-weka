@@ -60,6 +60,7 @@ import org.openml.apiconnector.xstream.XstreamXmlMapping;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.functions.supportVector.Kernel;
+import weka.classifiers.meta.multisearch.AbstractSearch;
 import weka.core.Option;
 import weka.core.OptionHandler;
 import weka.core.RevisionHandler;
@@ -102,6 +103,16 @@ public class WekaAlgorithm {
 			throw new Exception("Can not determine whether parameter is of simple type. ");
 		}
 		return count == 0;
+	}
+	
+	public static int countFlowComponents(Flow flow) {
+		int count = 1;
+		if (flow.getComponent() != null) {
+			for (Flow.Component sub : flow.getComponent()) {
+				count += countFlowComponents(sub.getImplementation());
+			}
+		}
+		return count;
 	}
 	
 	private static boolean isAssignableFrom(Class<?> parent, String[] values) throws Exception {
@@ -173,7 +184,11 @@ public class WekaAlgorithm {
 		// It does not exist. Create it. 
 		String xml = XstreamXmlMapping.getInstance().toXML(implementation);
 		//System.err.println(xml);
-		File implementationFile = Conversion.stringToTempFile(xml, implementation.getName(), "xml");
+		String flowName = implementation.getName();
+		if (flowName.length() > 64) {
+			flowName = flowName.substring(0, 64);
+		}
+		File implementationFile = Conversion.stringToTempFile(xml, flowName, "xml");
 		UploadFlow ui = apiconnector.flowUpload(implementationFile, null, null);
 		return ui.getId();
 	}
@@ -260,24 +275,21 @@ public class WekaAlgorithm {
 				flowComponents.put(parameter.name(), subimplementation);
 			} else if (isAssignableFrom(Kernel.class, currentValues) || 
 					   isAssignableFrom(Filter.class, currentValues) || 
-					   isAssignableFrom(Classifier.class, currentValues)) { // TODO: not correct way of discriminating
-				//System.out.println(currentValueSplitted[0]);
-				//System.out.println(Arrays.toString(Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length)));
+					   isAssignableFrom(Classifier.class, currentValues) ||
+					   isAssignableFrom(AbstractSearch.class, currentValues)) { // TODO: not correct way of discriminating
 				// Kernels etc. All parameters of the kernel are on the same currentOptions entry
 				
-				for (String currentValue : currentValues) {
-					String[] currentValueSplitted = currentValue.split(" ");
-					// TODO: this is where it goes wrong. does not take into account quotes
+				for (int i = 0; i < currentValues.length; ++i) {
+					String currentValue = currentValues[i];
+					String[] currentValueSplitted = Utils.splitOptions(currentValue);
 					Class<?> parameterClass = Class.forName(currentValueSplitted[0]);
 					String[] options = Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length);
-					//System.out.println(options.length + " " + Arrays.toString(options));
 					Object parameterObject = Utils.forName(parameterClass, 
 														   currentValueSplitted[0], 
 						                                   options);
-				
+					
 					Flow subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
-					// TODO: HERE WE HAVE A PROBLEM
-					flowComponents.put(parameter.name(), subimplementation);
+					flowComponents.put(parameter.name() + "_" + i, subimplementation);
 				}
 				
 				Parameter current = new Parameter(parameter.name(), WekaParameterType.OPTIONHANDLER.getName(), parameterValuesToJson(currentValues), parameter.description());
@@ -358,13 +370,12 @@ public class WekaAlgorithm {
 	
 	public static OptionHandler deserializeSetup(SetupParameters setup, Flow f) throws Exception {
 		String baseclass = f.getName().split("\\(")[0];
-		String[] allOptions = setupToOptionArray(setup, f);
-		System.out.println(baseclass + " " + Arrays.toString(allOptions));
+		String[] allOptions = setupToOptionArray(setup, f, 0);
 		OptionHandler result = (OptionHandler) Utils.forName(OptionHandler.class, baseclass, allOptions);
 		return result;
 	}
 
-	private static String[] setupToOptionArray(SetupParameters setup, Flow f) throws Exception {
+	private static String[] setupToOptionArray(SetupParameters setup, Flow f, int level) throws Exception {
 		if (f.getId() == null) {
 			throw new Exception("Can only deserialize setups based on flows with ids. Flow: " + f.getName());
 		}
@@ -376,31 +387,44 @@ public class WekaAlgorithm {
 			if (! p.getFlow_id().equals(f.getId())) {
 				continue;
 			}
+			
 			WekaParameterType type = WekaParameterType.fromString(p.getData_type());
-			String[] currentValueSplitted = Utils.splitOptions(p.getValue());
+			JSONArray currentValues = new JSONArray(p.getValue());
+			if (currentValues.length() > 1 && type != WekaParameterType.OPTIONHANDLER && type != WekaParameterType.ARRAY) {
+				throw new Exception("Found multiple values in not-allowed parameter: " + p.getFull_name());
+			}
+			
 			switch(type) {
-				case CLASSIFIER:
+				case CLASSIFIER: {
 					// System.out.println(p.getParameter_name() + " - classifier");
+					String[] currentValueSplitted = Utils.splitOptions(currentValues.getString(0));
 					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
 					primaryOptions = ArrayUtils.add(primaryOptions, currentValueSplitted[0]);
 					secondaryOptions = ArrayUtils.add(secondaryOptions, "--");
-					secondaryOptions = ArrayUtils.addAll(secondaryOptions, setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name())));
+					secondaryOptions = ArrayUtils.addAll(secondaryOptions, setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name()), level + 1));
 					break;
-				case OPTIONHANDLER:
+				} case OPTIONHANDLER: {
 					// System.out.println(p.getParameter_name() + " - kernel");
-					String[] subOptions = setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name()));
-					String subWithOptions = currentValueSplitted[0] + " " + StringUtils.join(subOptions, " ");
-					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
-					primaryOptions = ArrayUtils.add(primaryOptions, subWithOptions);
+					JSONArray componentValues = new JSONArray(p.getValue());
+					for (int i = 0; i < componentValues.length(); ++i) {
+						String[] currentValueSplitted = Utils.splitOptions(currentValues.getString(i));
+						String[] subOptions = setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name() + "_" + i), level + 1);
+						String subWithOptions = currentValueSplitted[0] + " " + StringUtils.join(subOptions, " ");
+						if (level > 0) {
+							subWithOptions = "\"" + Utils.backQuoteChars(subWithOptions) + "\""; // TODO: fix me!
+						}
+						primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
+						primaryOptions = ArrayUtils.add(primaryOptions, subWithOptions);
+					}
 					break;
-				case OPTION:
+				} case OPTION:
 					// System.out.println(p.getParameter_name() + " - option");
 					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
-					primaryOptions = ArrayUtils.add(primaryOptions, p.getValue());
+					primaryOptions = ArrayUtils.add(primaryOptions, currentValues.getString(0));
 					break;
 				case FLAG:
 					// System.out.println(p.getParameter_name() + " - flag");
-					if (p.getValue().equals("true")) {
+					if (currentValues.getString(0).equals("true")) {
 						primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
 					}
 					break;
@@ -427,39 +451,47 @@ public class WekaAlgorithm {
 				WekaParameterType type = WekaParameterType.fromString(p.getData_type());
 				switch(type) {
 					case CLASSIFIER:
-						String baselearnervalue = Utils.getOption(p.getName(), parameters);
+						String[] baselearnervalue = {Utils.getOption(p.getName(), parameters)};
 						String[] baselearnersettings = Utils.partitionOptions(parameters);
 						settings.addAll(getParameterSetting(baselearnersettings, implementation.getSubImplementation(p.getName())));
-						settings.add(new Parameter_setting(implementation.getId(), p.getName(), baselearnervalue));
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(baselearnervalue)));
 						break;
 					case OPTIONHANDLER:
-						String kernelvalue = Utils.getOption(p.getName(), parameters);
-						String kernelname = kernelvalue.substring(0, kernelvalue.indexOf(' '));
-						String[] kernelsettings = Utils.splitOptions(kernelvalue.substring(kernelvalue.indexOf(' ')+1));
-						ArrayList<Parameter_setting> kernelresult = getParameterSetting(kernelsettings, implementation.getSubImplementation(p.getName()));
-						settings.addAll(kernelresult);
-						settings.add(new Parameter_setting(implementation.getId(), p.getName(), kernelname));
+						String paramValue = Utils.getOption(p.getName(), parameters);
+						String[] baseValues = new String[0];
+						for (int i = 0; !paramValue.equals(""); ++i) {
+							String[] componentSettings = Utils.splitOptions(paramValue);
+							ArrayList<Parameter_setting> paramSettings = getParameterSetting(Arrays.copyOfRange(componentSettings, 1, componentSettings.length), 
+																 				 			 implementation.getSubImplementation(p.getName() + "_" + i));
+							settings.addAll(paramSettings);
+							baseValues = ArrayUtils.add(baseValues, paramValue);
+							paramValue = Utils.getOption(p.getName(), parameters);
+						}
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(baseValues)));
+						paramValue = Utils.getOption(p.getName(), parameters);
 						break;
 					case OPTION:
 						String optionvalue = Utils.getOption(p.getName(), parameters);
 						if(optionvalue != "") {
-							settings.add(new Parameter_setting(implementation.getId(), p.getName(), optionvalue));
+							String[] currentValue = {optionvalue};
+							settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(currentValue)));
 						}
 						break;
-					case FLAG:
+					case FLAG: 
 						boolean flagvalue = Utils.getFlag(p.getName(), parameters);
-						settings.add(new Parameter_setting(implementation.getId(), p.getName(), flagvalue ? "true" : "false"));
+						String[] currentValue = {flagvalue ? "true" : "false"};
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(currentValue)));
 						break;
 					case ARRAY:
-						List<String> values = new ArrayList<String>();
+						String[] values = new String[0];
 						String currentvalue = Utils.getOption(p.getName(), parameters);
 						while (!currentvalue.equals("")) {
-							values.add(currentvalue);
+							values = ArrayUtils.add(values, currentvalue);
 							currentvalue = Utils.getOption(p.getName(), parameters);
 						}
 						
-						if(values.size() > 0) {
-							settings.add(new Parameter_setting(implementation.getId(), p.getName(), values.toString()));
+						if(values.length > 0) {
+							settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(values)));
 						}
 						break;
 				}

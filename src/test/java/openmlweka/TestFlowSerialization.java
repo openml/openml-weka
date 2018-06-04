@@ -39,7 +39,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -136,7 +135,7 @@ public class TestFlowSerialization {
 			OptionHandler retrievedFlow = WekaAlgorithm.deserializeClassifier(downloaded);
 			Flow reconstructed = WekaAlgorithm.serializeClassifier(retrievedFlow, TAGS);
 			String reconstructedAsString = xstream.toXML(reconstructed);
-			assertEquals(reconstructedAsString, uploadedAsString);
+			assertEquals(uploadedAsString, reconstructedAsString);
 			
 			// check options are equal
 			assertArrayEquals(classif.getOptions(), retrievedFlow.getOptions());
@@ -158,7 +157,7 @@ public class TestFlowSerialization {
 			String calibratorName = calibrator.getClass().getName();
 			String kernelName = k.getClass().getName();
 			String expectedName = svm.getClass().getName() + "(" + kernelName + "," + calibratorName + ")";
-			assertEquals(flow.getName(), expectedName);
+			assertEquals(expectedName, flow.getName());
 			// this unit test only works because there is a bug in the current SVM version. 
 			
 			// parameter default value
@@ -180,19 +179,19 @@ public class TestFlowSerialization {
 				String baseName = baseClassifier.getClass().getName();
 				String expectedName = metaclassif.getClass().getName() + "(" + baseName + ")";
 				
-				assert(flow.getName().equals(expectedName));
+				assertEquals(expectedName, flow.getName());
 				
 				String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
 				String[] expectedDefaultValueArray = {baseClassifier.getClass().getName() + " " + StringUtils.join(baseClassifierOptions, " ")};
 				String expectedDefaultValue = WekaAlgorithm.parameterValuesToJson(expectedDefaultValueArray);
 				
 				// parameter default value
-				assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
+				assertEquals(expectedDefaultValue, getParametersAsMap(flow).get("W").getDefault_value());
 				
 				// check if can re-instantiate
 				OptionHandler deserialized = WekaAlgorithm.deserializeClassifier(flow);
 				Flow deserializedFlow = WekaAlgorithm.serializeClassifier(deserialized, null);
-				assert(xstream.toXML(deserializedFlow).equals(xstream.toXML(flow)));
+				assertEquals(xstream.toXML(flow), xstream.toXML(deserializedFlow));
 				
 				// check options are equal
 				assert(Arrays.equals(metaclassif.getOptions(), deserialized.getOptions()));
@@ -200,39 +199,43 @@ public class TestFlowSerialization {
 		}
 	}
 	
-	private void addLevelToFlow(Classifier baseClassifier, Flow baselevelFlow, int currentLevel, int maxLevel) throws Exception {
+	private void addLevelToFlow(Classifier baseClassifier, Flow baselevelFlow, int currentLevel, int maxLevel, int currentFlowCount) throws Exception {
 		IteratedSingleClassifierEnhancer[] metaclassifiers = {new AdaBoostM1(), new Bagging()}; // must have W option for classifier 
 		
 		if (currentLevel > maxLevel) {
 			return;
 		}
 		
+		currentFlowCount += 1;
 		for (IteratedSingleClassifierEnhancer metaclassif : metaclassifiers) {
 			metaclassif.setClassifier(baseClassifier);
 			Flow flow = WekaAlgorithm.serializeClassifier(metaclassif, null);
 			
 			// check if name is ok
 			String expectedName =  metaclassif.getClass().getName() + "(" + baselevelFlow.getName() + ")";
-			assert(flow.getName().equals(expectedName));
+			assertEquals(expectedName, flow.getName());
 			
 			// check if default value is OK
 			String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
 			String[] expectedDefaultValueArray = {baseClassifier.getClass().getName() + " " + Utils.joinOptions(baseClassifierOptions)};
 			String expectedDefaultValue = WekaAlgorithm.parameterValuesToJson(expectedDefaultValueArray);
 			
-			assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
-			assert(StringUtils.countMatches(expectedDefaultValue, "--") == currentLevel);
+			assertEquals(expectedDefaultValue, getParametersAsMap(flow).get("W").getDefault_value());
+			assertEquals(currentLevel, StringUtils.countMatches(expectedDefaultValue, "--"));
 			
 			// check if can re-instantiate
 			OptionHandler deserialized = WekaAlgorithm.deserializeClassifier(flow);
 			Flow deserializedFlow = WekaAlgorithm.serializeClassifier(deserialized, null);
-			assert(xstream.toXML(deserializedFlow).equals(xstream.toXML(flow)));
+			assertEquals(xstream.toXML(flow), xstream.toXML(deserializedFlow));
+			
+			// check if number of components is OK
+			assertEquals(currentFlowCount, WekaAlgorithm.countFlowComponents(deserializedFlow));
 			
 			// check options are equal
 			assert(Arrays.equals(metaclassif.getOptions(), deserialized.getOptions()));
 			
 			// continue to the next level 
-			addLevelToFlow(metaclassif, flow, currentLevel + 1, maxLevel);
+			addLevelToFlow(metaclassif, flow, currentLevel + 1, maxLevel, currentFlowCount);
 		}
 	}
 	
@@ -242,24 +245,28 @@ public class TestFlowSerialization {
 		
 		for (Classifier classifier : baseclassifiers) {
 			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
-			addLevelToFlow(classifier, baseflow, 0, 5);
+			addLevelToFlow(classifier, baseflow, 0, 5, 1);
 		}
 	}
 	
 	@Test
 	public void testMultiLevelFlowWithFilter() throws Exception {
 		Filter[] filters = {new ReplaceMissingValues(), new RemoveUseless(), new Normalize()};
-		MultiFilter multi = new MultiFilter();
-		multi.setFilters(filters);
-		filters = ArrayUtils.add(filters, multi);
 		
 		FilteredClassifier classifier = new FilteredClassifier();
 		for (Filter filter : filters) {
 			classifier.setFilter(filter);
-			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
+			Flow baseflow = WekaAlgorithm.serializeClassifier(classifier, null);
 			// this one starts at level 1, as the "base classifier" already has a "--" notation
-			addLevelToFlow(classifier, baseflow, 1, 3);
+			addLevelToFlow(classifier, baseflow, 1, 3, 3);
 		}
+		
+		// now also test a multi filter
+		MultiFilter multi = new MultiFilter();
+		multi.setFilters(filters);
+		classifier.setFilter(multi);
+		Flow baseflow = WekaAlgorithm.serializeClassifier(classifier, null);
+		addLevelToFlow(classifier, baseflow, 1, 3, 6);
 	}
 
 	@Test
@@ -270,8 +277,8 @@ public class TestFlowSerialization {
 		for (Kernel kernel : kernels) {
 			SMO classifier = new SMO();
 			classifier.setKernel(kernel);
-			Flow baseflow = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, null);
-			addLevelToFlow(classifier, baseflow, 0, 2);
+			Flow baseflow = WekaAlgorithm.serializeClassifier(classifier, null);
+			addLevelToFlow(classifier, baseflow, 0, 2, 3);
 		}
 	}
 	

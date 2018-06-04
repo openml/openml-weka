@@ -2,6 +2,8 @@ package openmlweka;
 
 import static org.junit.Assert.assertArrayEquals;
 
+import java.util.Arrays;
+
 import org.junit.Test;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
@@ -16,6 +18,8 @@ import com.thoughtworks.xstream.XStream;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.functions.SMO;
+import weka.classifiers.functions.supportVector.Kernel;
+import weka.classifiers.functions.supportVector.PolyKernel;
 import weka.classifiers.functions.supportVector.RBFKernel;
 import weka.classifiers.meta.Bagging;
 import weka.classifiers.meta.FilteredClassifier;
@@ -42,10 +46,12 @@ public class TestSetupSerialization {
 	public final XStream xstream = XstreamXmlMapping.getInstance();
 	
 	private OptionHandler deserializeSetup(OptionHandler classifier) throws Exception {
+		System.out.println("Original: " + Arrays.toString(classifier.getOptions()));
 		Flow flowOrig = WekaAlgorithm.serializeClassifier(classifier, null);
 		int runId = RunOpenmlJob.executeTask(connector, config, 115, (Classifier) classifier);
 		Run run = connector.runGet(runId);
 		Flow flow = connector.flowGet(run.getFlow_id());
+		System.out.println(run.getSetup_id());
 		SetupParameters setup = connector.setupParameters(run.getSetup_id());
 		
 		OptionHandler retrieved = WekaAlgorithm.deserializeSetup(setup, flow);
@@ -66,6 +72,24 @@ public class TestSetupSerialization {
 		
 		classifier.setConfidenceFactor(0.03F);
 		classifier.setMinNumObj(10);
+		
+		deserializeSetup(classifier);
+	}
+	
+
+	@Test
+	public void testMultiFilterClassifier() throws Exception {
+		FilteredClassifier classifier = new FilteredClassifier();
+
+		Filter[] filter = new Filter[3];
+		filter[0] = new ReplaceMissingValues();
+		filter[1] = new RemoveUseless();
+		filter[2] = new Normalize();
+		
+		MultiFilter multifilter = new MultiFilter();
+		multifilter.setFilters(filter);
+		
+		classifier.setFilter(multifilter);
 		
 		deserializeSetup(classifier);
 	}
@@ -94,6 +118,22 @@ public class TestSetupSerialization {
 	}
 	
 	@Test
+	public void testMultiLevelSVM() throws Exception {
+		PolyKernel poly = new PolyKernel();
+		poly.setExponent(3);
+		RBFKernel rbf = new RBFKernel();
+		rbf.setGamma(0.123);
+		Kernel[] kernels = {poly, rbf};
+		SMO classifier = new SMO();
+		classifier.setC(0.123);
+		for (Kernel kernel : kernels) {
+			classifier.setKernel(kernel);
+			
+			addLevel(classifier, 0, 2);
+		}
+	}
+	
+	@Test
 	public void testMultiLevelBaggingSVM() throws Exception {
 		RBFKernel rbf = new RBFKernel();
 		SMO classifier = new SMO();
@@ -104,11 +144,7 @@ public class TestSetupSerialization {
 		addLevel(classifier, 0, 2);
 	}
 	
-	@Test
-	public void testRandomSearchRandomForest() throws Exception {
-		RandomForest baseclassifier = new RandomForest();
-		baseclassifier.setNumIterations(16);
-		
+	private void testRandomSearchSetup(Classifier baseclassifier, AbstractParameter[] searchParameters) throws Exception {
 		Filter[] filter = new Filter[3];
 		filter[0] = new ReplaceMissingValues();
 		filter[1] = new RemoveUseless();
@@ -125,6 +161,45 @@ public class TestSetupSerialization {
 		randomSearchAlgorithm.setNumIterations(10);
 		randomSearchAlgorithm.setSearchSpaceNumFolds(3);
 		
+		MultiSearch search = new MultiSearch();
+		String[] evaluation = {"-E", "ACC"};
+		search.setOptions(evaluation);
+		search.setClassifier(classifier);
+		search.setAlgorithm(randomSearchAlgorithm);
+		search.setSearchParameters(searchParameters);
+		
+		deserializeSetup(search);
+	}
+	
+	@Test
+	public void testRandomSearchDecisionTree() throws Exception {
+		J48 baseclassifier = new J48();
+		
+		MathParameter numFeatures = new MathParameter();
+		numFeatures.setProperty("classifier.minNumObj");
+		numFeatures.setBase(1);
+		numFeatures.setExpression("I");
+		numFeatures.setMin(1);
+		numFeatures.setMax(20);
+		numFeatures.setStep(1);
+
+		MathParameter maxDepth = new MathParameter();
+		maxDepth.setProperty("classifier.confidenceFactor");
+		maxDepth.setBase(10);
+		maxDepth.setExpression("pow(BASE,I)");
+		maxDepth.setMin(-4);
+		maxDepth.setMax(-1);
+		maxDepth.setStep(1);
+		
+		AbstractParameter[] searchParameters = {numFeatures, maxDepth};
+		
+		testRandomSearchSetup(baseclassifier, searchParameters);
+	}
+	
+	@Test
+	public void testRandomSearchRandomForest() throws Exception {
+		RandomForest baseclassifier = new RandomForest();
+		
 		MathParameter numFeatures = new MathParameter();
 		numFeatures.setProperty("classifier.numFeatures");
 		numFeatures.setBase(1);
@@ -132,24 +207,9 @@ public class TestSetupSerialization {
 		numFeatures.setMin(0.1);
 		numFeatures.setMax(0.9);
 		numFeatures.setStep(0.1);
-
-		MathParameter maxDepth = new MathParameter();
-		maxDepth.setProperty("classifier.maxDepth");
-		maxDepth.setBase(1);
-		maxDepth.setExpression("I");
-		maxDepth.setMin(0);
-		maxDepth.setMax(10);
-		maxDepth.setStep(1);
 		
-		AbstractParameter[] searchParameters = {numFeatures, maxDepth};
+		AbstractParameter[] searchParameters = {numFeatures};
 		
-		MultiSearch search = new MultiSearch();
-		String[] evaluation = {"-E", "ACC"};
-		search.setOptions(evaluation);
-		search.setClassifier(baseclassifier);
-		search.setAlgorithm(randomSearchAlgorithm);
-		search.setSearchParameters(searchParameters);
-		
-		deserializeSetup(search);
+		testRandomSearchSetup(baseclassifier, searchParameters);
 	}
 }
