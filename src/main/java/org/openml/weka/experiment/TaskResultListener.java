@@ -216,7 +216,7 @@ public class TaskResultListener extends InstancesResultListener {
 		private Instances optimizationTrace;
 		private int nrOfResultBatches;
 		private final int nrOfExpectedResultBatches;
-		private String[] classnames;
+		private List<String> classnames;
 		private Run run;
 		private int implementation_id;
 		private boolean waitForFullModel;
@@ -233,12 +233,18 @@ public class TaskResultListener extends InstancesResultListener {
 			this.waitForFullModel = waitForFullModel;
 			this.hasFullModel = false;
 			
-			// TODO: instable. Do better
-			isRegression = t.getTask_type().equals("Supervised Regression");
+			// TODO: we need more information!
+			isRegression = t.getTask_type_id().equals(2);
 			inputData = sourceData;
 			optimizationTrace = null;
 
-			if (!isRegression) { classnames = TaskInformation.getClassNames(apiconnector, this.task); }
+			if (!isRegression) {
+				Attribute classAttribute = sourceData.attribute(TaskInformation.getSourceData(t).getTarget_feature());
+				classnames = new ArrayList<String>();
+				for (int i = 0; i < classAttribute.numValues(); ++i) {
+					classnames.add(classAttribute.value(i));
+				}
+			}
 			task_id = this.task.getTask_id();
 
 			repeats = 1;
@@ -254,18 +260,14 @@ public class TaskResultListener extends InstancesResultListener {
 			ArrayList<Attribute> attInfo = new ArrayList<Attribute>();
 			for (Feature f : TaskInformation.getPredictions(t).getFeatures()) {
 				if (f.getName().equals("confidence.classname")) {
-					for (String s : TaskInformation.getClassNames(apiconnector, t)) {
+					for (String s : classnames) {
 						attInfo.add(new Attribute("confidence." + s));
 					}
 				} else if (f.getName().equals("prediction")) {
 					if (isRegression) {
 						attInfo.add(new Attribute("prediction"));
 					} else {
-						List<String> values = new ArrayList<String>(classnames.length);
-						for (String classname : classnames) {
-							values.add(classname);
-						}
-						attInfo.add(new Attribute(f.getName(), values));
+						attInfo.add(new Attribute(f.getName(), classnames));
 					}
 				} else {
 					attInfo.add(new Attribute(f.getName()));
@@ -305,7 +307,7 @@ public class TaskResultListener extends InstancesResultListener {
 				if (current instanceof NominalPrediction) {
 					double[] confidences = ((NominalPrediction) current).distribution();
 					for (int j = 0; j < confidences.length; ++j) {
-						values[predictions.attribute("confidence." + classnames[j]).index()] = confidences[j];
+						values[predictions.attribute("confidence." + classnames.get(j)).index()] = confidences[j];
 					}
 				}
 
