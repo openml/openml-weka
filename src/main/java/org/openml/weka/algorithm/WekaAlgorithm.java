@@ -91,37 +91,45 @@ public class WekaAlgorithm {
 		return version;
 	}
 
-	public static boolean isFloat(String s) {
-	    try { 
-	        Float.parseFloat(s); 
-	    } catch(NumberFormatException e) { 
-	        return false; 
-	    } catch(NullPointerException e) {
-	        return false;
-	    }
-	    // only got here if we didn't return false
-	    return true;
-	}
-
-	public static boolean isChar(String s) {
-	    return s.length() == 1;
-	}
-
-	public static boolean isBoolean(String s) {
-	    String lower = s.toLowerCase().trim();
-	    return lower == "true" || lower == "false";
+	private static boolean isSimpleParameter(String[] defaultValues) throws Exception {
+		int count = 0;
+		for  (String s : defaultValues) {
+			if (s.startsWith("weka.")) {
+				count += 1;
+			}
+		}
+		if (count > 0 && count < defaultValues.length) {
+			throw new Exception("Can not determine whether parameter is of simple type. ");
+		}
+		return count == 0;
 	}
 	
-	public static boolean isAbstractParameter(Class<?> parameterClass) {
-		try {
-			if (AbstractParameter.class.isAssignableFrom(parameterClass)) {
-				return true;
+	private static boolean isAssignableFrom(Class<?> parent, String[] values) throws Exception {
+		int count = 0; 
+		for  (String currentValue : values) {
+			String[] currentValueSplitted = Utils.splitOptions(currentValue);
+			if (currentValueSplitted.length == 0) {
+				continue;
 			}
-			return false;
-		} catch(NoClassDefFoundError e) {
-			// If the module is not loaded, it can not be part of it
-			return false;
+			Class<?> child = Class.forName(currentValueSplitted[0]);
+			
+			if (parent.isAssignableFrom(child)) {
+				count += 1;
+			}
 		}
+		
+		if (count > 0 && count < values.length) {
+			throw new Exception("Can not determine type of complex type. ");
+		}
+		return count == values.length;
+	}
+	
+	public static String parameterValuesToJson(String[] defaultValues) {
+		JSONArray values = new JSONArray();
+		for (int i = 0; i < defaultValues.length; ++i) {
+			values.put(defaultValues[i]);
+		}
+		return values.toString();
 	}
 	
 	public static Integer getSetupId(String classifierName, String option_str, OpenmlConnector apiconnector) throws Exception {
@@ -186,7 +194,7 @@ public class WekaAlgorithm {
 			// JvR 30/05/2018: It is my conjecture that all hyperparameters after this one are specific to 
 			// kernel/base-classifier and should not be used in the main classifier. 
 			if (parameter.name().equals("") && parameter.synopsis().startsWith("\nOptions specific to")) {
-				// TODO: do something better with lookup in childeren's dicts.
+				// TODO: do something better with lookup in childeren's parameter maps.
 				break;
 			}
 
@@ -197,20 +205,27 @@ public class WekaAlgorithm {
 			if(parameter.name().trim().equals("")) {
 				throw new Exception("Empty parameter name: " + parameter.name());
 			}
-			String defaultValue = "";
-			String currentValue = "";
-			
+			String[] defaultValues = new String[0];
+			String[] currentValues = new String[0];
 			if(parameter.numArguments() == 0) {
-				//System.out.println(parameter.name() + " = FLAG + value = " + Utils.getFlag(parameter.name(), currentOptions));
-				defaultValue = Utils.getFlag(parameter.name(), defaultOptions) == true ? "true" : "";
-				currentValue = Utils.getFlag(parameter.name(), currentOptions) == true ? "true" : "";
+				defaultValues = ArrayUtils.add(defaultValues, Utils.getFlag(parameter.name(), defaultOptions) == true ? "true" : "false");
+				currentValues = ArrayUtils.add(currentValues, Utils.getFlag(parameter.name(), currentOptions) == true ? "true" : "false");
 			} else {
-				defaultValue = Utils.getOption(parameter.name(), defaultOptions);
-				currentValue = Utils.getOption(parameter.name(), currentOptions);
+				String currentDefaultValue = Utils.getOption(parameter.name(), defaultOptions);
+				// each option can occur multiple times in the option string
+				while(!currentDefaultValue.equals("")) {
+					defaultValues = ArrayUtils.add(defaultValues, currentDefaultValue);
+					currentDefaultValue = Utils.getOption(parameter.name(), defaultOptions);
+				}
+				String currentCurrentValue = Utils.getOption(parameter.name(), currentOptions);
+				while(!currentCurrentValue.equals("")) {
+					currentValues = ArrayUtils.add(currentValues, currentCurrentValue);
+					currentCurrentValue = Utils.getOption(parameter.name(), currentOptions);
+				}
 			}
-			// System.out.println("- " + classifierOrig.getClass().getName() + "_" + parameter.name() + " (" + parameter.numArguments() + " args), " + defaultValue);
-				
-			if (defaultValue.length() == 0 || isFloat(defaultValue) || isChar(defaultValue) || isBoolean(defaultValue) || !defaultValue.startsWith("weka.")) {
+			// System.out.println("- " + classifierOrig.getClass().getName() + "_" + parameter.name() + " (" + parameter.numArguments() + " args), default: " + parameterValuesToJson(defaultValues) + "; current: " +  parameterValuesToJson(currentValues));
+			
+			if (defaultValues.length == 0 || isSimpleParameter(defaultValues)) {
 				// Parameter with vanilla option (recognized by integer, float or empty value)
 				// also string values that do not start with "weka." are considered "normal parameters" (if a string value starts with "weka." it is probably a class)
 				WekaParameterType type;
@@ -220,46 +235,55 @@ public class WekaAlgorithm {
 					type = WekaParameterType.OPTION;
 				}
 				
-				Parameter current = new Parameter(parameter.name(), type.getName(), defaultValue, parameter.description());
+				Parameter current = new Parameter(parameter.name(), type.getName(), parameterValuesToJson(defaultValues), parameter.description());
 				flowParameters.put(parameter.name(), current);
 				continue;
 			}
 			
-			String[] currentValueSplitted = Utils.splitOptions(currentValue);
-			Class<?> parameterClass = Class.forName(currentValueSplitted[0]);
+			if (currentValues.length == 0) {
+				throw new Exception("Inferred complex parameter type but no values set. ");
+			}
 			
-			Flow subimplementation;
-			
-			if (isAbstractParameter(parameterClass)) {
+			if (isAssignableFrom(AbstractParameter.class, currentValues)) {
 				WekaParameterType type = WekaParameterType.ARRAY;
 				Parameter current = new Parameter(parameter.name(), type.getName(), null, parameter.description());
 				flowParameters.put(parameter.name(), current);
-			} else if (Classifier.class.isAssignableFrom(parameterClass) && currentValueSplitted.length == 1) {
+			} else if (isAssignableFrom(Classifier.class, currentValues) && currentValues.length == 1 && currentValues[0].indexOf(" ") == -1) {
 				// Meta algorithms and stuff. All parameters follow from the hyphen in currentOptions
 				String[] subclassifierOptions = Utils.partitionOptions(currentOptions);
-				Object parameterObject = Utils.forName(Classifier.class, currentValue, Arrays.copyOf(subclassifierOptions, subclassifierOptions.length));
-				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
+				Object parameterObject = Utils.forName(Classifier.class, currentValues[0], Arrays.copyOf(subclassifierOptions, subclassifierOptions.length));
+				Flow subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
 				WekaParameterType type = WekaParameterType.CLASSIFIER;
-				String currentParamDefaultValue = currentValue + " " + Utils.joinOptions(subclassifierOptions);
-				Parameter current = new Parameter(parameter.name(), type.getName(), currentParamDefaultValue, parameter.description());
+				String[] currentParamDefaultValue = {currentValues[0] + " " + Utils.joinOptions(subclassifierOptions)};
+				Parameter current = new Parameter(parameter.name(), type.getName(), parameterValuesToJson(currentParamDefaultValue), parameter.description());
 				flowParameters.put(parameter.name(), current);
 				flowComponents.put(parameter.name(), subimplementation);
-			} else if (Kernel.class.isAssignableFrom(parameterClass) || 
-					Filter.class.isAssignableFrom(parameterClass) || 
-					Classifier.class.isAssignableFrom(parameterClass)) { // TODO: not correct way of discriminating
+			} else if (isAssignableFrom(Kernel.class, currentValues) || 
+					   isAssignableFrom(Filter.class, currentValues) || 
+					   isAssignableFrom(Classifier.class, currentValues)) { // TODO: not correct way of discriminating
+				//System.out.println(currentValueSplitted[0]);
+				//System.out.println(Arrays.toString(Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length)));
 				// Kernels etc. All parameters of the kernel are on the same currentOptions entry
-				Object parameterObject = Utils.forName(parameterClass, 
-						currentValueSplitted[0], 
-						Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length));
 				
-				subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
-				WekaParameterType type = WekaParameterType.OPTIONHANDLER;
+				for (String currentValue : currentValues) {
+					String[] currentValueSplitted = currentValue.split(" ");
+					// TODO: this is where it goes wrong. does not take into account quotes
+					Class<?> parameterClass = Class.forName(currentValueSplitted[0]);
+					String[] options = Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length);
+					//System.out.println(options.length + " " + Arrays.toString(options));
+					Object parameterObject = Utils.forName(parameterClass, 
+														   currentValueSplitted[0], 
+						                                   options);
 				
-				Parameter current = new Parameter(parameter.name(), type.getName(), currentValue, parameter.description());
+					Flow subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
+					// TODO: HERE WE HAVE A PROBLEM
+					flowComponents.put(parameter.name(), subimplementation);
+				}
+				
+				Parameter current = new Parameter(parameter.name(), WekaParameterType.OPTIONHANDLER.getName(), parameterValuesToJson(currentValues), parameter.description());
 				flowParameters.put(parameter.name(), current);
-				flowComponents.put(parameter.name(), subimplementation);
 			} else {
-				throw new Exception("Classifier contains an unsupported parameter type: " + currentValueSplitted[0]);
+				throw new Exception("Classifier contains an unsupported parameter type: " + parameter.name());
 			}
 		}
 		
@@ -303,10 +327,11 @@ public class WekaAlgorithm {
 		String[] secondaryOptions = new String[0];
 		
 		for (Parameter p : f.getParameter()) {
+			JSONArray defaultValues = new JSONArray(p.getDefault_value()); 
 			WekaParameterType type = WekaParameterType.fromString(p.getData_type());
 			switch(type) {
 				case CLASSIFIER:
-					String[] currentValueSplitted = Utils.splitOptions(p.getDefault_value());
+					String[] currentValueSplitted = Utils.splitOptions(defaultValues.getString(0));
 					String[] exceptFirst = Arrays.copyOfRange(currentValueSplitted, 1, currentValueSplitted.length);
 					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
 					primaryOptions = ArrayUtils.add(primaryOptions, currentValueSplitted[0]);
@@ -314,8 +339,10 @@ public class WekaAlgorithm {
 					secondaryOptions = ArrayUtils.addAll(secondaryOptions, exceptFirst);
 					break;
 				case OPTIONHANDLER:
-					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
-					primaryOptions = ArrayUtils.add(primaryOptions, p.getDefault_value());
+					for (int i = 0; i < defaultValues.length(); ++i) {
+						primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
+						primaryOptions = ArrayUtils.add(primaryOptions, defaultValues.getString(i));
+					}
 					break;
 				default:
 					break;

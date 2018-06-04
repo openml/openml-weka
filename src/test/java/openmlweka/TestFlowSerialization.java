@@ -31,11 +31,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 package openmlweka;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -132,10 +136,10 @@ public class TestFlowSerialization {
 			OptionHandler retrievedFlow = WekaAlgorithm.deserializeClassifier(downloaded);
 			Flow reconstructed = WekaAlgorithm.serializeClassifier(retrievedFlow, TAGS);
 			String reconstructedAsString = xstream.toXML(reconstructed);
-			assert(reconstructedAsString.equals(uploadedAsString));
+			assertEquals(reconstructedAsString, uploadedAsString);
 			
 			// check options are equal
-			assert(Arrays.equals(classif.getOptions(), retrievedFlow.getOptions()));
+			assertArrayEquals(classif.getOptions(), retrievedFlow.getOptions());
 		}
 	}
 	
@@ -154,7 +158,7 @@ public class TestFlowSerialization {
 			String calibratorName = calibrator.getClass().getName();
 			String kernelName = k.getClass().getName();
 			String expectedName = svm.getClass().getName() + "(" + kernelName + "," + calibratorName + ")";
-			assert(flow.getName().equals(expectedName));
+			assertEquals(flow.getName(), expectedName);
 			// this unit test only works because there is a bug in the current SVM version. 
 			
 			// parameter default value
@@ -179,7 +183,8 @@ public class TestFlowSerialization {
 				assert(flow.getName().equals(expectedName));
 				
 				String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
-				String expectedDefaultValue = baseClassifier.getClass().getName() + " " + StringUtils.join(baseClassifierOptions, " ");
+				String[] expectedDefaultValueArray = {baseClassifier.getClass().getName() + " " + StringUtils.join(baseClassifierOptions, " ")};
+				String expectedDefaultValue = WekaAlgorithm.parameterValuesToJson(expectedDefaultValueArray);
 				
 				// parameter default value
 				assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
@@ -212,7 +217,9 @@ public class TestFlowSerialization {
 			
 			// check if default value is OK
 			String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
-			String expectedDefaultValue = baseClassifier.getClass().getName() + " " + Utils.joinOptions(baseClassifierOptions);
+			String[] expectedDefaultValueArray = {baseClassifier.getClass().getName() + " " + Utils.joinOptions(baseClassifierOptions)};
+			String expectedDefaultValue = WekaAlgorithm.parameterValuesToJson(expectedDefaultValueArray);
+			
 			assert(getParametersAsMap(flow).get("W").getDefault_value().equals(expectedDefaultValue));
 			assert(StringUtils.countMatches(expectedDefaultValue, "--") == currentLevel);
 			
@@ -241,8 +248,11 @@ public class TestFlowSerialization {
 	
 	@Test
 	public void testMultiLevelFlowWithFilter() throws Exception {
-		Filter[] filters = {new ReplaceMissingValues(), new RemoveUseless(), new Normalize(), new MultiFilter()};
-
+		Filter[] filters = {new ReplaceMissingValues(), new RemoveUseless(), new Normalize()};
+		MultiFilter multi = new MultiFilter();
+		multi.setFilters(filters);
+		filters = ArrayUtils.add(filters, multi);
+		
 		FilteredClassifier classifier = new FilteredClassifier();
 		for (Filter filter : filters) {
 			classifier.setFilter(filter);
