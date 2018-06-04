@@ -1,14 +1,21 @@
 package openmlweka;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.junit.Test;
+import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Run;
+import org.openml.apiconnector.xml.SetupExists;
 import org.openml.apiconnector.xml.SetupParameters;
+import org.openml.apiconnector.xml.Run.Parameter_setting;
 import org.openml.apiconnector.xstream.XstreamXmlMapping;
 import org.openml.weka.algorithm.WekaAlgorithm;
 import org.openml.weka.algorithm.WekaConfig;
@@ -57,17 +64,25 @@ public class TestSetupSerialization {
 		int runId = RunOpenmlJob.executeTask(connector, config, 115, (Classifier) classifier);
 		Run run = connector.runGet(runId);
 		Flow flow = connector.flowGet(run.getFlow_id());
-		System.out.println(run.getSetup_id());
 		SetupParameters setup = connector.setupParameters(run.getSetup_id());
 		
 		OptionHandler retrieved = WekaAlgorithm.deserializeSetup(setup, flow);
 		
 		// check if flows are equal
 		Flow flowRetrieved = WekaAlgorithm.serializeClassifier(classifier, null);
-		assert(xstream.toXML(flowOrig).equals(xstream.toXML(flowRetrieved)));
+		assertEquals(xstream.toXML(flowOrig), xstream.toXML(flowRetrieved));
 		
 		// check if options are the same
 		assertArrayEquals(classifier.getOptions(), retrieved.getOptions());
+		
+		ArrayList<Parameter_setting> parameterSettingsList = WekaAlgorithm.getParameterSetting(retrieved.getOptions(), flow);
+		Parameter_setting[] parameterSettingsArray = parameterSettingsList.toArray(new Parameter_setting[parameterSettingsList.size()]);
+		Run setupObject = new Run(null, null, flow.getId(), null, parameterSettingsArray, null);
+		File setutupObjectDescription = Conversion.stringToTempFile(xstream.toXML(setupObject), "setup", "xml");
+		
+		SetupExists se = connector.setupExists(setutupObjectDescription);
+		assertTrue(se.exists());
+		assertEquals(run.getSetup_id(), se.getId());
 		
 		return retrieved;
 	}
