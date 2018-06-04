@@ -105,16 +105,6 @@ public class WekaAlgorithm {
 		return count == 0;
 	}
 	
-	public static int countFlowComponents(Flow flow) {
-		int count = 1;
-		if (flow.getComponent() != null) {
-			for (Flow.Component sub : flow.getComponent()) {
-				count += countFlowComponents(sub.getImplementation());
-			}
-		}
-		return count;
-	}
-	
 	private static boolean isAssignableFrom(Class<?> parent, String[] values) throws Exception {
 		int count = 0; 
 		for  (String currentValue : values) {
@@ -135,12 +125,18 @@ public class WekaAlgorithm {
 		return count == values.length;
 	}
 	
-	public static String parameterValuesToJson(String[] defaultValues) {
+	public static String parameterValuesToJson(String[] defaultValues, Integer maxLength) throws Exception {
 		JSONArray values = new JSONArray();
 		for (int i = 0; i < defaultValues.length; ++i) {
 			values.put(defaultValues[i]);
 		}
-		return values.toString();
+		String result = values.toString();
+		if (maxLength != null) {
+			if (result.length() > maxLength) {
+				throw new Exception("Parameter value longer than allowed " + maxLength + " characters. ");
+			}
+		}
+		return result;
 	}
 	
 	public static Integer getSetupId(String classifierName, String option_str, OpenmlConnector apiconnector) throws Exception {
@@ -250,7 +246,7 @@ public class WekaAlgorithm {
 					type = WekaParameterType.OPTION;
 				}
 				
-				Parameter current = new Parameter(parameter.name(), type.getName(), parameterValuesToJson(defaultValues), parameter.description());
+				Parameter current = new Parameter(parameter.name(), type.getName(), parameterValuesToJson(defaultValues, Constants.MAX_LENGTH_PARAM_VALUE), parameter.description());
 				flowParameters.put(parameter.name(), current);
 				continue;
 			}
@@ -270,7 +266,7 @@ public class WekaAlgorithm {
 				Flow subimplementation = serializeClassifier((OptionHandler) parameterObject, tags);
 				WekaParameterType type = WekaParameterType.CLASSIFIER;
 				String[] currentParamDefaultValue = {currentValues[0] + " " + Utils.joinOptions(subclassifierOptions)};
-				Parameter current = new Parameter(parameter.name(), type.getName(), parameterValuesToJson(currentParamDefaultValue), parameter.description());
+				Parameter current = new Parameter(parameter.name(), type.getName(), parameterValuesToJson(currentParamDefaultValue, Constants.MAX_LENGTH_PARAM_VALUE), parameter.description());
 				flowParameters.put(parameter.name(), current);
 				flowComponents.put(parameter.name(), subimplementation);
 			} else if (isAssignableFrom(Kernel.class, currentValues) || 
@@ -292,7 +288,7 @@ public class WekaAlgorithm {
 					flowComponents.put(parameter.name() + "_" + i, subimplementation);
 				}
 				
-				Parameter current = new Parameter(parameter.name(), WekaParameterType.OPTIONHANDLER.getName(), parameterValuesToJson(currentValues), parameter.description());
+				Parameter current = new Parameter(parameter.name(), WekaParameterType.OPTIONHANDLER.getName(), parameterValuesToJson(currentValues, Constants.MAX_LENGTH_PARAM_VALUE), parameter.description());
 				flowParameters.put(parameter.name(), current);
 			} else {
 				throw new Exception("Classifier contains an unsupported parameter type: " + parameter.name());
@@ -328,6 +324,14 @@ public class WekaAlgorithm {
 		}
 		for (Parameter p : flowParameters.values()) {
 			i.addParameter(p);
+		}
+		
+		int paramCount = i.countParameters();
+		if (paramCount > Constants.MAX_ALLOWED_PARAMETERS) {
+			throw new Exception("Flow got " + paramCount + " parameters, only " + Constants.MAX_ALLOWED_PARAMETERS + " allowed: " + i.getName());
+		}
+		if (i.getName().length() > Constants.MAX_LENGTH_FLOW_NAME) {
+			throw new Exception("Flow name is " + i.getName().length() + " characters, only " + Constants.MAX_LENGTH_FLOW_NAME + " characters allowed: " + i.getName());
 		}
 		
 		return i;
@@ -401,7 +405,7 @@ public class WekaAlgorithm {
 					primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getParameter_name());
 					primaryOptions = ArrayUtils.add(primaryOptions, currentValueSplitted[0]);
 					secondaryOptions = ArrayUtils.add(secondaryOptions, "--");
-					secondaryOptions = ArrayUtils.addAll(secondaryOptions, setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name()), level + 1));
+					secondaryOptions = ArrayUtils.addAll(secondaryOptions, setupToOptionArray(setup, f.getSubImplementation(p.getParameter_name()), level));
 					break;
 				} case OPTIONHANDLER: {
 					// System.out.println(p.getParameter_name() + " - kernel");
@@ -454,7 +458,7 @@ public class WekaAlgorithm {
 						String[] baselearnervalue = {Utils.getOption(p.getName(), parameters)};
 						String[] baselearnersettings = Utils.partitionOptions(parameters);
 						settings.addAll(getParameterSetting(baselearnersettings, implementation.getSubImplementation(p.getName())));
-						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(baselearnervalue)));
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(baselearnervalue, Constants.MAX_LENGTH_PARAM_VALUE)));
 						break;
 					case OPTIONHANDLER:
 						String paramValue = Utils.getOption(p.getName(), parameters);
@@ -467,20 +471,19 @@ public class WekaAlgorithm {
 							baseValues = ArrayUtils.add(baseValues, paramValue);
 							paramValue = Utils.getOption(p.getName(), parameters);
 						}
-						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(baseValues)));
-						paramValue = Utils.getOption(p.getName(), parameters);
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(baseValues, Constants.MAX_LENGTH_PARAM_VALUE)));
 						break;
 					case OPTION:
 						String optionvalue = Utils.getOption(p.getName(), parameters);
 						if(optionvalue != "") {
 							String[] currentValue = {optionvalue};
-							settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(currentValue)));
+							settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(currentValue, Constants.MAX_LENGTH_PARAM_VALUE)));
 						}
 						break;
 					case FLAG: 
 						boolean flagvalue = Utils.getFlag(p.getName(), parameters);
 						String[] currentValue = {flagvalue ? "true" : "false"};
-						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(currentValue)));
+						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(currentValue, Constants.MAX_LENGTH_PARAM_VALUE)));
 						break;
 					case ARRAY:
 						String[] values = new String[0];
@@ -491,7 +494,7 @@ public class WekaAlgorithm {
 						}
 						
 						if(values.length > 0) {
-							settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(values)));
+							settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(values, Constants.MAX_LENGTH_PARAM_VALUE)));
 						}
 						break;
 				}

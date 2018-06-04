@@ -280,16 +280,11 @@ public class TaskResultListener extends InstancesResultListener {
 
 			implementation_id = WekaAlgorithm.getImplementationId(find, classifier, apiconnector);
 			Flow implementation = apiconnector.flowGet(implementation_id);
-
-			String setup_string = classifier.getClass().getName();
-			if (options.equals("") == false) {
-				setup_string += (" -- " + options);
-			}
 			
 			String[] params = Utils.splitOptions(options);
 			List<Parameter_setting> list = WekaAlgorithm.getParameterSetting(params, implementation);
 
-			run = new Run(t.getTask_id(), error_message, implementation.getId(), setup_string, list.toArray(new Parameter_setting[list.size()]), tags);
+			run = new Run(t.getTask_id(), error_message, implementation.getId(), null, list.toArray(new Parameter_setting[list.size()]), tags);
 		}
 
 		public void addBatchOfPredictions(Integer fold, Integer repeat, Integer sample, List<Integer> rowids, ArrayList<Prediction> batchPredictions,

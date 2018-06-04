@@ -183,7 +183,7 @@ public class TestFlowSerialization {
 				
 				String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
 				String[] expectedDefaultValueArray = {baseClassifier.getClass().getName() + " " + StringUtils.join(baseClassifierOptions, " ")};
-				String expectedDefaultValue = WekaAlgorithm.parameterValuesToJson(expectedDefaultValueArray);
+				String expectedDefaultValue = WekaAlgorithm.parameterValuesToJson(expectedDefaultValueArray, null);
 				
 				// parameter default value
 				assertEquals(expectedDefaultValue, getParametersAsMap(flow).get("W").getDefault_value());
@@ -218,7 +218,7 @@ public class TestFlowSerialization {
 			// check if default value is OK
 			String[] baseClassifierOptions = ((OptionHandler) baseClassifier).getOptions(); 
 			String[] expectedDefaultValueArray = {baseClassifier.getClass().getName() + " " + Utils.joinOptions(baseClassifierOptions)};
-			String expectedDefaultValue = WekaAlgorithm.parameterValuesToJson(expectedDefaultValueArray);
+			String expectedDefaultValue = WekaAlgorithm.parameterValuesToJson(expectedDefaultValueArray, null);
 			
 			assertEquals(expectedDefaultValue, getParametersAsMap(flow).get("W").getDefault_value());
 			assertEquals(currentLevel, StringUtils.countMatches(expectedDefaultValue, "--"));
@@ -229,7 +229,7 @@ public class TestFlowSerialization {
 			assertEquals(xstream.toXML(flow), xstream.toXML(deserializedFlow));
 			
 			// check if number of components is OK
-			assertEquals(currentFlowCount, WekaAlgorithm.countFlowComponents(deserializedFlow));
+			assertEquals(currentFlowCount, deserializedFlow.countComponents());
 			
 			// check options are equal
 			assert(Arrays.equals(metaclassif.getOptions(), deserialized.getOptions()));
