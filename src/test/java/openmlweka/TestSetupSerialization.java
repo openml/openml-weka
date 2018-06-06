@@ -6,8 +6,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
@@ -290,7 +290,6 @@ public class TestSetupSerialization {
 		shrinkage.setStep(1);
 		
 		AbstractParameter[] searchParameters = {numIterations, treeDepth, shrinkage};
-		connector.setVerboseLevel(1);
 		testRandomSearchSetup(baseclassifier, searchParameters);
 	}
 	
@@ -329,6 +328,7 @@ public class TestSetupSerialization {
 	}
 	
 	@Test
+	@Ignore
 	public void testRandomSearchNeuralNetwork() throws Exception {
 		MultilayerPerceptron baseclassifier = new MultilayerPerceptron();
 
