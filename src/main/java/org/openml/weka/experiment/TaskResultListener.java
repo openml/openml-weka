@@ -34,6 +34,7 @@ package org.openml.weka.experiment;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -285,8 +286,10 @@ public class TaskResultListener extends InstancesResultListener {
 			
 			String[] params = Utils.splitOptions(options);
 			List<Parameter_setting> list = WekaAlgorithm.getParameterSetting(params, implementation);
-
-			run = new Run(t.getTask_id(), error_message, implementation.getId(), null, list.toArray(new Parameter_setting[list.size()]), tags);
+			
+			String setup_string = classifier.getClass().getName() + " " + options;
+			
+			run = new Run(t.getTask_id(), error_message, implementation.getId(), setup_string, list.toArray(new Parameter_setting[list.size()]), tags);
 		}
 
 		public void addBatchOfPredictions(Integer fold, Integer repeat, Integer sample, List<Integer> rowids, ArrayList<Prediction> batchPredictions,

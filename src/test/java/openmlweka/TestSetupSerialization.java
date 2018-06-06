@@ -59,14 +59,13 @@ public class TestSetupSerialization {
 	public final XStream xstream = XstreamXmlMapping.getInstance();
 	
 	private OptionHandler deserializeSetup(OptionHandler classifier) throws Exception {
-		System.out.println("Original: " + Arrays.toString(classifier.getOptions()));
 		Flow flowOrig = WekaAlgorithm.serializeClassifier(classifier, null);
 		int runId = RunOpenmlJob.executeTask(connector, config, 115, (Classifier) classifier);
 		Run run = connector.runGet(runId);
 		Flow flow = connector.flowGet(run.getFlow_id());
 		SetupParameters setup = connector.setupParameters(run.getSetup_id());
 		
-		OptionHandler retrieved = WekaAlgorithm.deserializeSetup(setup, flow);
+		OptionHandler retrieved = WekaAlgorithm.deserializeSetup(setup, flow, false);
 		
 		// check if flows are equal
 		Flow flowRetrieved = WekaAlgorithm.serializeClassifier(classifier, null);
@@ -291,7 +290,7 @@ public class TestSetupSerialization {
 		shrinkage.setStep(1);
 		
 		AbstractParameter[] searchParameters = {numIterations, treeDepth, shrinkage};
-		
+		connector.setVerboseLevel(1);
 		testRandomSearchSetup(baseclassifier, searchParameters);
 	}
 	
