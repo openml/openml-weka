@@ -31,12 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 package org.openml.weka.algorithm;
 
-import java.io.BufferedReader;
-import java.net.URL;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.openml.apiconnector.algorithms.Input;
 import org.openml.apiconnector.algorithms.TaskInformation;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.DataSetDescription;
@@ -62,13 +60,11 @@ public class DataSplits {
 		String targetAttribute = TaskInformation.getSourceData(task).getTarget_feature();
 		int dataId = TaskInformation.getSourceData(task).getData_set_id();
 		DataSetDescription dsd = openml.dataGet(dataId);
-		URL splitsUrl = new URL(TaskInformation.getEstimationProcedure(task).getData_splits_url());
-		URL datasetUrl = openml.getOpenmlFileUrl(dsd.getFile_id(), dsd.getName() + ".arff");
 		
-		Instances dataset = new Instances(new BufferedReader(Input.getURL(datasetUrl)));
+		Instances dataset = new Instances(new FileReader(openml.datasetGet(dsd)));
 		
 		dataset.setClass(dataset.attribute(targetAttribute));
-		Instances splits = new Instances(new BufferedReader(Input.getURL(splitsUrl)));
+		Instances splits = new Instances(new FileReader(openml.taskSplitsGet(task)));
 		
 		return new DataSplits(task, dataset, splits);
 	}

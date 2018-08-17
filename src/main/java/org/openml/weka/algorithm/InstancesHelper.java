@@ -78,7 +78,7 @@ public class InstancesHelper {
 		Data_set ds = TaskInformation.getSourceData(task);
 
 		DataSetDescription dsd = ds.getDataSetDescription(apiconnector);
-		Instances instances = new Instances(new FileReader(dsd.getDataset(apiconnector.getApiKey())));
+		Instances instances = new Instances(new FileReader(apiconnector.datasetGet(dsd)));
 
 		InstancesHelper.setTargetAttribute(instances, ds.getTarget_feature());
 

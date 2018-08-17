@@ -33,20 +33,27 @@ package openmlweka;
 
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
 import java.util.Map;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.json.JSONArray;
 import org.junit.Test;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.SetupParameters;
-import org.openml.apiconnector.xml.SetupParameters.Parameter;
+import org.openml.apiconnector.xml.Parameter;
 import org.openml.weka.algorithm.WekaConfig;
 import org.openml.weka.experiment.RunOpenmlJob;
 
+import weka.classifiers.Classifier;
 import weka.classifiers.bayes.NaiveBayes;
+import weka.classifiers.meta.AdaBoostM1;
+import weka.classifiers.meta.Bagging;
 import weka.classifiers.trees.J48;
+import weka.core.OptionHandler;
+import weka.core.Utils;
 
 public class TestRunJob {
 	
@@ -72,10 +79,14 @@ public class TestRunJob {
 	
 	@Test
 	public void testApiRunUploadJ48() throws Exception {
+		float confidenceFactor = 0.001F;
+		int minNumObj = 5;
+		boolean binarySplits = true;
+		
 		J48 tree = new J48();
-		tree.setConfidenceFactor(0.001F);
-		tree.setMinNumObj(5);
-		tree.setBinarySplits(true);
+		tree.setConfidenceFactor(confidenceFactor);
+		tree.setMinNumObj(minNumObj);
+		tree.setBinarySplits(binarySplits);
 		int runId = RunOpenmlJob.executeTask(openml, config, 115, tree);
 		Run run = openml.runGet(runId);
 		int setupId = run.getSetup_id();
@@ -83,8 +94,46 @@ public class TestRunJob {
 		SetupParameters sp = openml.setupParameters(setupId);
 		Map<String, Parameter> parameters = sp.getParametersAsMap();
 		String fullName = flow.getName() + "(" + flow.getVersion() + ")";
-		assertEquals(parameters.get(fullName + "_M").getValue(), "5");
-		assertEquals(parameters.get(fullName + "_C").getValue(), "0.001");
-		assertEquals(parameters.get(fullName + "_B").getValue(), "true");
+		assertEquals(new JSONArray(parameters.get(fullName + "_M").getValue()).getString(0), "" + minNumObj);
+		assertEquals(new JSONArray(parameters.get(fullName + "_C").getValue()).getString(0), "" + confidenceFactor);
+		assertEquals(new JSONArray(parameters.get(fullName + "_B").getValue()).getString(0), "" + binarySplits);
+	}
+	
+	@Test
+	public void testApiRunUploadBaggingJ48() throws Exception {
+		float confidenceFactor = 0.001F;
+		int minNumObj = 5;
+		boolean binarySplits = true;
+		
+		J48 tree = new J48();
+		tree.setConfidenceFactor(confidenceFactor);
+		tree.setMinNumObj(minNumObj);
+		tree.setBinarySplits(binarySplits);
+		Bagging metaClassifier = new Bagging();
+		metaClassifier.setClassifier(tree);
+		
+		int runId = RunOpenmlJob.executeTask(openml, config, 115, metaClassifier);
+		Run run = openml.runGet(runId);
+		int setupId = run.getSetup_id();
+		Flow flow = openml.flowGet(run.getFlow_id());
+		SetupParameters sp = openml.setupParameters(setupId);
+		Map<String, Parameter> parameters = sp.getParametersAsMap();
+		String fullName = flow.getName() + "(" + flow.getVersion() + ")";
+		for (String parameterName : parameters.keySet()) {
+			Parameter current = parameters.get(parameterName);
+			System.out.println(current.getFull_name() + " " + current.getData_type() + " " + current.getValue());
+		}
+	}
+	
+	@Test
+	public void testForName() throws Exception {
+		String[] options = {"-P", "100", "-S", "1", "-I", "10", "-W", "weka.classifiers.trees.REPTree", "--", "-M", "2", "-V", "0.001", "-N", "3", "-S", "1", "-L", "-1", "-I", "0.0"};
+		String className = "weka.classifiers.meta.AdaBoostM1";
+		Class classType = Classifier.class;
+		Object c = Utils.forName(classType, className, options);
+
+		System.out.println("old: " + (Arrays.toString(((OptionHandler)c).getOptions())));
+		System.out.println("new: " + (Arrays.toString(((OptionHandler)c).getOptions())));
+		System.out.println(((AdaBoostM1) c).getClassifier().getClass().getName());
 	}
 }

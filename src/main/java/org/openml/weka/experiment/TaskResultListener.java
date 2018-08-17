@@ -68,6 +68,7 @@ import weka.classifiers.evaluation.Prediction;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instances;
+import weka.core.OptionHandler;
 import weka.core.RevisionHandler;
 import weka.core.Utils;
 import weka.core.Version;
@@ -170,7 +171,7 @@ public class TaskResultListener extends InstancesResultListener {
 		SciMark benchmarker = SciMark.getInstance();
 		oet.getRun().addOutputEvaluation(new EvaluationScore("os_information", null, null, "['" + StringUtils.join(benchmarker.getOsInfo(), "', '") + "']"));
 		if (skipJvmBenchmark == false) {
-			oet.getRun().addOutputEvaluation(new EvaluationScore("scimark_benchmark", benchmarker.getResult() + "", null, "[" + StringUtils.join(benchmarker.getStringArray(), ", ") + "]"));
+			oet.getRun().addOutputEvaluation(new EvaluationScore("scimark_benchmark", benchmarker.getResult(), null, "[" + StringUtils.join(benchmarker.getStringArray(), ", ") + "]"));
 		}
 		tmpPredictionsFile = Conversion.stringToTempFile(oet.getPredictions().toString(), "weka_generated_predictions", Constants.DATASET_FORMAT);
 		tmpDescriptionFile = Conversion.stringToTempFile(xstream.toXML(oet.getRun()), "weka_generated_run", "xml");
@@ -215,7 +216,7 @@ public class TaskResultListener extends InstancesResultListener {
 		private Instances optimizationTrace;
 		private int nrOfResultBatches;
 		private final int nrOfExpectedResultBatches;
-		private String[] classnames;
+		private List<String> classnames;
 		private Run run;
 		private int implementation_id;
 		private boolean waitForFullModel;
@@ -232,12 +233,18 @@ public class TaskResultListener extends InstancesResultListener {
 			this.waitForFullModel = waitForFullModel;
 			this.hasFullModel = false;
 			
-			// TODO: instable. Do better
-			isRegression = t.getTask_type().equals("Supervised Regression");
+			// TODO: we need more information!
+			isRegression = t.getTask_type_id().equals(2);
 			inputData = sourceData;
 			optimizationTrace = null;
 
-			if (!isRegression) { classnames = TaskInformation.getClassNames(apiconnector, this.task); }
+			if (!isRegression) {
+				Attribute classAttribute = sourceData.attribute(TaskInformation.getSourceData(t).getTarget_feature());
+				classnames = new ArrayList<String>();
+				for (int i = 0; i < classAttribute.numValues(); ++i) {
+					classnames.add(classAttribute.value(i));
+				}
+			}
 			task_id = this.task.getTask_id();
 
 			repeats = 1;
@@ -253,18 +260,14 @@ public class TaskResultListener extends InstancesResultListener {
 			ArrayList<Attribute> attInfo = new ArrayList<Attribute>();
 			for (Feature f : TaskInformation.getPredictions(t).getFeatures()) {
 				if (f.getName().equals("confidence.classname")) {
-					for (String s : TaskInformation.getClassNames(apiconnector, t)) {
+					for (String s : classnames) {
 						attInfo.add(new Attribute("confidence." + s));
 					}
 				} else if (f.getName().equals("prediction")) {
 					if (isRegression) {
 						attInfo.add(new Attribute("prediction"));
 					} else {
-						List<String> values = new ArrayList<String>(classnames.length);
-						for (String classname : classnames) {
-							values.add(classname);
-						}
-						attInfo.add(new Attribute(f.getName(), values));
+						attInfo.add(new Attribute(f.getName(), classnames));
 					}
 				} else {
 					attInfo.add(new Attribute(f.getName()));
@@ -275,19 +278,16 @@ public class TaskResultListener extends InstancesResultListener {
 
 			predictions = new Instances("openml_task_" + t.getTask_id() + "_predictions", attInfo, 0);
 
-			Flow find = WekaAlgorithm.serializeClassifier(classifier.getClass().getName(), tags);
+			Flow find = WekaAlgorithm.serializeClassifier((OptionHandler) classifier, tags);
 
 			implementation_id = WekaAlgorithm.getImplementationId(find, classifier, apiconnector);
 			Flow implementation = apiconnector.flowGet(implementation_id);
-
-			String setup_string = classifier.getClass().getName();
-			if (options.equals("") == false) {
-				setup_string += (" -- " + options);
-			}
 			
 			String[] params = Utils.splitOptions(options);
 			List<Parameter_setting> list = WekaAlgorithm.getParameterSetting(params, implementation);
-
+			
+			String setup_string = classifier.getClass().getName() + " " + options;
+			
 			run = new Run(t.getTask_id(), error_message, implementation.getId(), setup_string, list.toArray(new Parameter_setting[list.size()]), tags);
 		}
 
@@ -309,7 +309,7 @@ public class TaskResultListener extends InstancesResultListener {
 				if (current instanceof NominalPrediction) {
 					double[] confidences = ((NominalPrediction) current).distribution();
 					for (int j = 0; j < confidences.length; ++j) {
-						values[predictions.attribute("confidence." + classnames[j]).index()] = confidences[j];
+						values[predictions.attribute("confidence." + classnames.get(j)).index()] = confidences[j];
 					}
 				}
 
@@ -327,7 +327,7 @@ public class TaskResultListener extends InstancesResultListener {
 			for (String m : userMeasures.keySet()) {
 				MetricScore score = userMeasures.get(m);
 
-				getRun().addOutputEvaluation(new EvaluationScore(m, score.getScore() + "", null, repeat, fold, sample, null));
+				getRun().addOutputEvaluation(new EvaluationScore(m, score.getScore(), null, repeat, fold, sample, null));
 			}
 		}
 
@@ -343,9 +343,9 @@ public class TaskResultListener extends InstancesResultListener {
 				Double totalTimeTesting = (Double) splitEvaluatorResults.get(keyTesting);
 				Double totalTime = totalTimeTesting + totalTimeTraining;
 				
-				getRun().addOutputEvaluation(new EvaluationScore(keyTesting.toLowerCase(), "" + totalTimeTesting, null, null));
-				getRun().addOutputEvaluation(new EvaluationScore(keyTraining.toLowerCase(), "" + totalTimeTraining, null, null));
-				getRun().addOutputEvaluation(new EvaluationScore("usercpu_time_millis", "" + totalTime, null, null));
+				getRun().addOutputEvaluation(new EvaluationScore(keyTesting.toLowerCase(), totalTimeTesting, null, null));
+				getRun().addOutputEvaluation(new EvaluationScore(keyTraining.toLowerCase(), totalTimeTraining, null, null));
+				getRun().addOutputEvaluation(new EvaluationScore("usercpu_time_millis", totalTime, null, null));
 			}
 
 			try {
