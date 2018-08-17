@@ -7,7 +7,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.util.ArrayList;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
@@ -42,6 +41,7 @@ import weka.classifiers.trees.RandomForest;
 import weka.core.OptionHandler;
 import weka.core.setupgenerator.AbstractParameter;
 import weka.core.setupgenerator.ListParameter;
+import weka.core.setupgenerator.MLPLayersParameter;
 import weka.core.setupgenerator.MathParameter;
 import weka.filters.Filter;
 import weka.filters.MultiFilter;
@@ -328,17 +328,15 @@ public class TestSetupSerialization {
 	}
 	
 	@Test
-	@Ignore
 	public void testRandomSearchNeuralNetwork() throws Exception {
 		MultilayerPerceptron baseclassifier = new MultilayerPerceptron();
 
-		MathParameter hiddenlayers = new MathParameter();
+		MLPLayersParameter hiddenlayers = new MLPLayersParameter();
 		hiddenlayers.setProperty("classifier.hiddenLayers");
-		hiddenlayers.setBase(1);
-		hiddenlayers.setExpression("I");
-		hiddenlayers.setMin(32);
-		hiddenlayers.setMax(64);
-		hiddenlayers.setStep(1);
+		hiddenlayers.setMinLayers(1);
+		hiddenlayers.setMaxLayers(2);
+		hiddenlayers.setMinLayerSize(8);
+		hiddenlayers.setMaxLayerSize(16);
 
 		MathParameter learningRate = new MathParameter();
 		learningRate.setProperty("classifier.learningRate");
@@ -351,7 +349,7 @@ public class TestSetupSerialization {
 		ListParameter decay = new ListParameter();
 		decay.setProperty("classifier.decay");
 		decay.setList("false true");
-		// TODO: check if this works with flags
+		
 
 		MathParameter epochs = new MathParameter();
 		epochs.setProperty("classifier.trainingTime");
