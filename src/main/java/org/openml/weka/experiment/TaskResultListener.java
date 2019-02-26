@@ -37,6 +37,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -92,7 +94,7 @@ public class TaskResultListener extends InstancesResultListener {
 	
 	private final String[] all_tags;
 	
-	private final List<Integer> runIds;
+	private final Map<Integer, Run> runs;
 
 	boolean skipJvmBenchmark = false;
 	
@@ -104,7 +106,7 @@ public class TaskResultListener extends InstancesResultListener {
 		tasksWithErrors = new ArrayList<String>();
 		all_tags = ArrayUtils.addAll(DEFAULT_TAGS, config.getTags());
 		skipJvmBenchmark = config.getSkipJvmBenchmark();
-		runIds = new ArrayList<Integer>();
+		runs = new TreeMap<Integer, Run>();
 	}
 
 	public void acceptResultsForSending(Task t, Instances sourceData, Integer repeat, Integer fold, Integer sample, Classifier classifier, String options,
@@ -124,7 +126,7 @@ public class TaskResultListener extends InstancesResultListener {
 		if (oet.complete()) {
 			int runId = sendTask(oet);
 			currentlyCollecting.remove(key);
-			runIds.add(runId);
+			runs.put(runId, oet.getRun());
 		}
 	}
 
@@ -137,7 +139,7 @@ public class TaskResultListener extends InstancesResultListener {
 		if (tasksWithErrors.contains(key) == false) {
 			tasksWithErrors.add(key);
 			int runId = sendTaskWithError(new OpenmlExecutedTask(t, classifier, sourceData, error_message, options, apiconnector, all_tags));
-			runIds.add(runId);
+			runs.put(runId, null);
 		}
 	}
 
@@ -177,8 +179,12 @@ public class TaskResultListener extends InstancesResultListener {
 		return ur.getRun_id();
 	}
 	
-	public List<Integer> getRunIds() {
-		return runIds;
+	public Set<Integer> getRunIds() {
+		return runs.keySet();
+	}
+	
+	public Run getRun(Integer runId) {
+		return runs.get(runId);
 	}
 
 	private class OpenmlExecutedTask {

@@ -33,26 +33,26 @@ package openmlweka;
 
 import static org.junit.Assert.*;
 
-import java.util.Arrays;
 import java.util.Map;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONArray;
 import org.junit.Test;
 import org.openml.apiconnector.io.OpenmlConnector;
+import org.openml.apiconnector.xml.EvaluationScore;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.SetupParameters;
 import org.openml.apiconnector.xml.Parameter;
 import org.openml.weka.algorithm.WekaConfig;
 import org.openml.weka.experiment.RunOpenmlJob;
+import org.openml.weka.experiment.TaskResultProducer;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.bayes.NaiveBayes;
-import weka.classifiers.meta.AdaBoostM1;
 import weka.classifiers.meta.Bagging;
 import weka.classifiers.trees.J48;
-import weka.core.OptionHandler;
 import weka.core.Utils;
 
 public class TestRunJob {
@@ -73,7 +73,7 @@ public class TestRunJob {
 	
 	@Test
 	public void testApiRunUploadNB() throws Exception {
-		int runIdA = RunOpenmlJob.executeTask(openml, config, 115, new NaiveBayes());
+		int runIdA = RunOpenmlJob.executeTask(openml, config, 115, new NaiveBayes()).getLeft();
 		assertTrue(openml.runGet(runIdA).getFlow_name().contains("NaiveBayes"));
 	}
 	
@@ -87,7 +87,7 @@ public class TestRunJob {
 		tree.setConfidenceFactor(confidenceFactor);
 		tree.setMinNumObj(minNumObj);
 		tree.setBinarySplits(binarySplits);
-		int runId = RunOpenmlJob.executeTask(openml, config, 115, tree);
+		int runId = RunOpenmlJob.executeTask(openml, config, 115, tree).getLeft();
 		Run run = openml.runGet(runId);
 		int setupId = run.getSetup_id();
 		Flow flow = openml.flowGet(run.getFlow_id());
@@ -112,17 +112,14 @@ public class TestRunJob {
 		Bagging metaClassifier = new Bagging();
 		metaClassifier.setClassifier(tree);
 		
-		int runId = RunOpenmlJob.executeTask(openml, config, 115, metaClassifier);
-		Run run = openml.runGet(runId);
+		Pair<Integer, Run> result = RunOpenmlJob.executeTask(openml, config, 115, metaClassifier);
+		Run run = openml.runGet(result.getLeft());
 		int setupId = run.getSetup_id();
-		Flow flow = openml.flowGet(run.getFlow_id());
-		SetupParameters sp = openml.setupParameters(setupId);
-		Map<String, Parameter> parameters = sp.getParametersAsMap();
-		String fullName = flow.getName() + "(" + flow.getVersion() + ")";
-		for (String parameterName : parameters.keySet()) {
-			Parameter current = parameters.get(parameterName);
-			System.out.println(current.getFull_name() + " " + current.getData_type() + " " + current.getValue());
-		}
+		openml.flowGet(run.getFlow_id());
+		openml.setupParameters(setupId);
+
+		int expectedEvaluations = TaskResultProducer.USER_MEASURES.length * 10 + 1; // times 10 because 10f CV, plus 1 for OS info
+		assertEquals(expectedEvaluations, result.getRight().getOutputEvaluation().length);
 	}
 	
 	@Test
@@ -131,9 +128,9 @@ public class TestRunJob {
 		String className = "weka.classifiers.meta.AdaBoostM1";
 		Class classType = Classifier.class;
 		Object c = Utils.forName(classType, className, options);
-
-		System.out.println("old: " + (Arrays.toString(((OptionHandler)c).getOptions())));
-		System.out.println("new: " + (Arrays.toString(((OptionHandler)c).getOptions())));
-		System.out.println(((AdaBoostM1) c).getClassifier().getClass().getName());
+		
+		// System.out.println("old: " + (Arrays.toString(((OptionHandler)c).getOptions())));
+		// System.out.println("new: " + (Arrays.toString(((OptionHandler)c).getOptions())));
+		// System.out.println(((AdaBoostM1) c).getClassifier().getClass().getName());
 	}
 }

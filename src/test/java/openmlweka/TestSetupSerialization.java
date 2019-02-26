@@ -60,7 +60,7 @@ public class TestSetupSerialization {
 	
 	private OptionHandler deserializeSetup(OptionHandler classifier) throws Exception {
 		Flow flowOrig = WekaAlgorithm.serializeClassifier(classifier, null);
-		int runId = RunOpenmlJob.executeTask(connector, config, 115, (Classifier) classifier);
+		int runId = RunOpenmlJob.executeTask(connector, config, 115, (Classifier) classifier).getLeft();
 		Run run = connector.runGet(runId);
 		Flow flow = connector.flowGet(run.getFlow_id());
 		SetupParameters setup = connector.setupParameters(run.getSetup_id());

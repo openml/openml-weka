@@ -36,8 +36,11 @@ import java.beans.PropertyDescriptor;
 
 import javax.swing.DefaultListModel;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
+import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.Task;
 import org.openml.weka.algorithm.WekaConfig;
 
@@ -60,7 +63,7 @@ public class RunOpenmlJob implements CommandlineRunnable {
 		rj.run(rj, args);
 	}
 	
-	public static int executeTask(OpenmlConnector openml, WekaConfig config, Integer task_id, Classifier classifier) throws Exception {
+	public static Pair<Integer, Run> executeTask(OpenmlConnector openml, WekaConfig config, Integer task_id, Classifier classifier) throws Exception {
 		TaskBasedExperiment exp = new TaskBasedExperiment(new Experiment(), openml, config);
 		ResultProducer rp = new TaskResultProducer(openml, config);
 		TaskResultListener rl = new TaskResultListener(openml, config);
@@ -101,9 +104,13 @@ public class RunOpenmlJob implements CommandlineRunnable {
 		System.err.println("Postprocessing...");
 		exp.postProcess();
 		System.err.println("Done");
-		
-		int runId = ((TaskResultListener) exp.getResultListener()).getRunIds().get(0);
-		return runId;
+		TaskResultListener trl = (TaskResultListener) exp.getResultListener();
+		if (trl.getRunIds().size() != 1) {
+			throw new RuntimeException("This function is expected to upload exactly one run. Got: " + trl.getRunIds());
+		}
+		int runId = trl.getRunIds().iterator().next();
+		System.err.println("Uploaded with run id: " + runId);
+		return new ImmutablePair<Integer, Run>(runId, trl.getRun(runId));
 	}
 	
 	@Override

@@ -58,7 +58,9 @@ import weka.experiment.OutputZipper;
 
 public class TaskResultProducer extends CrossValidationResultProducer {
 
-	private static UserMeasures[] USER_MEASURES = {
+	private static final long serialVersionUID = 1L;
+	
+	public static final UserMeasures[] USER_MEASURES = {
 		new UserMeasures("predictive_accuracy", "Percent_correct", .01),
 		new UserMeasures("kappa", "Kappa_statistic"),
 		new UserMeasures("root_mean_squared_error", "Root_mean_squared_error"),
@@ -66,12 +68,10 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 		new UserMeasures("usercpu_time_millis_training", "UserCPU_Time_millis_training"),
 		new UserMeasures("usercpu_time_millis_testing", "UserCPU_Time_millis_testing"),
 		new UserMeasures("usercpu_time_millis", "UserCPU_Time_millis"), 
-		new UserMeasures("Elapsed_Time_training", "wall_clock_time_millis_training"),
-		new UserMeasures("Elapsed_Time_testing", "wall_clock_time_testing"),
-		new UserMeasures("Elapsed_Time", "wall_clock_time"), 
+		new UserMeasures("wall_clock_time_millis_training", "Elapsed_Time_training",  1000),
+		new UserMeasures("wall_clock_time_millis_testing", "Elapsed_Time_testing",  1000),
+		new UserMeasures("wall_clock_time_millis", "Elapsed_Time", 1000), 
 	};
-
-	private static final long serialVersionUID = 1L;
 
 	public static final String TASK_FIELD_NAME = "OpenML_Task_id";
 	public static final String SAMPLE_FIELD_NAME = "Sample";
@@ -208,6 +208,8 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 						for (UserMeasures um : USER_MEASURES) {
 							if (splitEvaluatorResults.containsKey(um.wekaFunctionName)) {
 								userMeasures.put(um.openmlFunctionName, new MetricScore(((Double) splitEvaluatorResults.get(um.wekaFunctionName)) * um.factor, test.size()));
+							} else {
+								Conversion.log("WARNING", "MEASURE", "Missing measure " + um.wekaFunctionName);
 							}
 						}
 					}
@@ -229,7 +231,7 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 		}
 	}
 
-	private static class UserMeasures {
+	public static class UserMeasures {
 		private final String openmlFunctionName;
 		private final String wekaFunctionName;
 		private final double factor;
