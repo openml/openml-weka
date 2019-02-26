@@ -40,7 +40,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONArray;
 import org.junit.Test;
 import org.openml.apiconnector.io.OpenmlConnector;
-import org.openml.apiconnector.xml.EvaluationScore;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.SetupParameters;
