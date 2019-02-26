@@ -46,19 +46,6 @@ public class WekaConfig extends Config {
 	}
 	
 	/**
-	 * @return Whether to build a model over full dataset in runs (takes time)
-	 */
-	public boolean getModelFullDataset() {
-		if (get("model_full_dataset") == null) {
-			return true; // default value
-		}
-		if (get("model_full_dataset").equals("false")) {
-			return false;
-		}
-		return true;
-	}
-	
-	/**
 	 * @return Whether to benchmark Jvm before uploading results
 	 */
 	public boolean getSkipJvmBenchmark() {

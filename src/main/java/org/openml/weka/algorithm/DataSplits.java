@@ -53,6 +53,7 @@ public class DataSplits {
 	public final int FOLDS;
 	public final int SAMPLES;
 	public final int DATASET_ID;
+	public final boolean HAS_SAMPLES;
 	
 	// TODO: should overload?? 
 	public static DataSplits get(OpenmlConnector openml, int taskId) throws Exception {
@@ -74,12 +75,19 @@ public class DataSplits {
 		int numRepeats = TaskInformation.getNumberOfRepeats(task);
 		int numFolds = TaskInformation.getNumberOfFolds(task);
 		int numSamples = 1;
-		try {numSamples = TaskInformation.getNumberOfSamples(task);} catch (Exception e) {}
+		boolean hasSamples = false;
+		try {
+			numSamples = TaskInformation.getNumberOfSamples(task);
+			hasSamples = true;
+		} catch (Exception e) {
+			
+		}
 
 		DATASET_ID = TaskInformation.getSourceData(task).getData_set_id();
 		REPEATS = numRepeats;
 		FOLDS = numFolds;
 		SAMPLES = numSamples;
+		HAS_SAMPLES = hasSamples;
 		
 		subsamples = new Instances[REPEATS][FOLDS][SAMPLES][2];
 		rowids = new ArrayList[REPEATS][FOLDS][SAMPLES];

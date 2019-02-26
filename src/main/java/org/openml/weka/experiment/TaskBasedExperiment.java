@@ -195,15 +195,6 @@ public class TaskBasedExperiment extends Experiment {
 		
 		
 		m_ResultProducer.doRun(m_RunNumber);
-
-		// before advancing the counters
-		// check if we want to built a model over the full dataset.
-		if (m_RunNumber == getRunUpper()) {
-			if (openmlconfig.getModelFullDataset()) {
-				((TaskResultProducer) m_ResultProducer).doFullRun();
-			}
-		}
-
 		advanceCounters();
 	}
 

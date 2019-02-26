@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 package org.openml.weka.experiment;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -108,34 +107,15 @@ public class TaskResultListener extends InstancesResultListener {
 		runIds = new ArrayList<Integer>();
 	}
 
-	public void acceptFullModel(Task t, Instances sourceData, Classifier classifier, String options, Map<String, Object> splitEvaluatorResults,
-			OpenmlSplitEvaluator tse) throws Exception {
-		String revision = (classifier instanceof RevisionHandler) ? ((RevisionHandler) classifier).getRevision() : "undefined";
-		String implementationId = classifier.getClass().getName() + "(" + revision + ")";
-
-		String key = t.getTask_id() + "_" + implementationId + "_" + options;
-		if (currentlyCollecting.containsKey(key) == false) {
-			currentlyCollecting.put(key, new OpenmlExecutedTask(t, classifier, sourceData, null, options, apiconnector, true, all_tags));
-		}
-		OpenmlExecutedTask oet = currentlyCollecting.get(key);
-		oet.modelFullDataset(splitEvaluatorResults, tse);
-
-		if (oet.complete()) {
-			int runId = sendTask(oet);
-			currentlyCollecting.remove(key);
-			runIds.add(runId);
-		}
-	}
-
 	public void acceptResultsForSending(Task t, Instances sourceData, Integer repeat, Integer fold, Integer sample, Classifier classifier, String options,
 			List<Integer> rowids, ArrayList<Prediction> predictions, Map<String, MetricScore> userMeasures,
-			List<Quadlet<String, Double, List<Entry<String, Object>>, Boolean>> optimizationTrace, boolean wantFullModel) throws Exception {
+			List<Quadlet<String, Double, List<Entry<String, Object>>, Boolean>> optimizationTrace) throws Exception {
 		// TODO: do something better than undefined
 		String revision = (classifier instanceof RevisionHandler) ? ((RevisionHandler) classifier).getRevision() : "undefined";
 		String implementationId = classifier.getClass().getName() + "(" + revision + ")";
 		String key = t.getTask_id() + "_" + implementationId + "_" + options;
 		if (currentlyCollecting.containsKey(key) == false) {
-			currentlyCollecting.put(key, new OpenmlExecutedTask(t, classifier, sourceData, null, options, apiconnector, wantFullModel, all_tags));
+			currentlyCollecting.put(key, new OpenmlExecutedTask(t, classifier, sourceData, null, options, apiconnector, all_tags));
 		}
 		OpenmlExecutedTask oet = currentlyCollecting.get(key);
 		oet.addBatchOfPredictions(fold, repeat, sample, rowids, predictions, optimizationTrace);
@@ -156,7 +136,7 @@ public class TaskResultListener extends InstancesResultListener {
 
 		if (tasksWithErrors.contains(key) == false) {
 			tasksWithErrors.add(key);
-			int runId = sendTaskWithError(new OpenmlExecutedTask(t, classifier, sourceData, error_message, options, apiconnector, false, all_tags));
+			int runId = sendTaskWithError(new OpenmlExecutedTask(t, classifier, sourceData, error_message, options, apiconnector, all_tags));
 			runIds.add(runId);
 		}
 	}
@@ -178,12 +158,6 @@ public class TaskResultListener extends InstancesResultListener {
 		Map<String, File> output_files = new HashMap<String, File>();
 
 		output_files.put("predictions", tmpPredictionsFile);
-		if (oet.serializedClassifier != null) {
-			output_files.put("model_serialized", oet.serializedClassifier);
-		}
-		if (oet.humanReadableClassifier != null) {
-			output_files.put("model_readable", oet.humanReadableClassifier);
-		}
 		if (oet.optimizationTrace != null) {
 			output_files.put("trace", Conversion.stringToTempFile(oet.optimizationTrace.toString(), "optimization_trace", "arff"));
 		}
@@ -219,19 +193,12 @@ public class TaskResultListener extends InstancesResultListener {
 		private List<String> classnames;
 		private Run run;
 		private int implementation_id;
-		private boolean waitForFullModel;
-		private boolean hasFullModel;
 
 		private int repeats;
 		private int samples;
 
-		private File serializedClassifier = null;
-		private File humanReadableClassifier = null;
-
-		public OpenmlExecutedTask(Task t, Classifier classifier, Instances sourceData, String error_message, String options, OpenmlConnector apiconnector, boolean waitForFullModel, String[] tags) throws Exception {
+		public OpenmlExecutedTask(Task t, Classifier classifier, Instances sourceData, String error_message, String options, OpenmlConnector apiconnector, String[] tags) throws Exception {
 			this.task = t;
-			this.waitForFullModel = waitForFullModel;
-			this.hasFullModel = false;
 			
 			// TODO: we need more information!
 			isRegression = t.getTask_type_id().equals(2);
@@ -331,36 +298,6 @@ public class TaskResultListener extends InstancesResultListener {
 			}
 		}
 
-		public void modelFullDataset(Map<String, Object> splitEvaluatorResults, OpenmlSplitEvaluator tse) {
-			// build model for entire data set. This can take some time
-			Classifier classifierModel = tse.getClassifier();
-			hasFullModel = true;
-			String keyTraining = "UserCPU_Time_millis_training";
-			String keyTesting = "UserCPU_Time_millis_testing";
-
-			if (splitEvaluatorResults.containsKey(keyTraining) && splitEvaluatorResults.containsKey(keyTesting)) {
-				Double totalTimeTraining = (Double) splitEvaluatorResults.get(keyTraining);
-				Double totalTimeTesting = (Double) splitEvaluatorResults.get(keyTesting);
-				Double totalTime = totalTimeTesting + totalTimeTraining;
-				
-				getRun().addOutputEvaluation(new EvaluationScore(keyTesting.toLowerCase(), totalTimeTesting, null, null));
-				getRun().addOutputEvaluation(new EvaluationScore(keyTraining.toLowerCase(), totalTimeTraining, null, null));
-				getRun().addOutputEvaluation(new EvaluationScore("usercpu_time_millis", totalTime, null, null));
-			}
-
-			try {
-				humanReadableClassifier = Conversion.stringToTempFile(classifierModel.toString(), "WekaModel_" + classifierModel.getClass().getName(), "model");
-			} catch (IOException ioe) {
-				Conversion.log("Warning", "Model", "Problem extracting human readible model. ");
-			}
-
-			try {
-				serializedClassifier = WekaAlgorithm.classifierSerializedToFile(classifierModel, task_id);
-			} catch (IOException ioe) {
-				Conversion.log("Warning", "Model", "Problem extracting serializable model. ");
-			}
-		}
-
 		public Run getRun() {
 			return run;
 		}
@@ -370,13 +307,7 @@ public class TaskResultListener extends InstancesResultListener {
 		}
 
 		public boolean complete() {
-			boolean allFolds = nrOfResultBatches == nrOfExpectedResultBatches;
-			
-			if (waitForFullModel) {
-				return allFolds && hasFullModel;
-			} else {
-				return allFolds;
-			}
+			return nrOfResultBatches == nrOfExpectedResultBatches;
 		}
 	}
 }

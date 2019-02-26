@@ -201,9 +201,6 @@ public class WekaAlgorithm {
 		String xml = XstreamXmlMapping.getInstance().toXML(implementation);
 		//System.err.println(xml);
 		String flowName = implementation.getName();
-		if (flowName.length() > 64) {
-			flowName = flowName.substring(0, 64);
-		}
 		File implementationFile = Conversion.stringToTempFile(xml, flowName, "xml");
 		UploadFlow ui = apiconnector.flowUpload(implementationFile, null, null);
 		return ui.getId();

@@ -59,13 +59,17 @@ import weka.experiment.OutputZipper;
 public class TaskResultProducer extends CrossValidationResultProducer {
 
 	private static UserMeasures[] USER_MEASURES = {
-			new UserMeasures("predictive_accuracy", "Percent_correct", .01),
-			new UserMeasures("kappa", "Kappa_statistic"),
-			new UserMeasures("root_mean_squared_error", "Root_mean_squared_error"),
-			new UserMeasures("root_relative_squared_error", "Root_relative_squared_error", .01),
-			new UserMeasures("usercpu_time_millis_training", "UserCPU_Time_millis_training"),
-			new UserMeasures("usercpu_time_millis_testing", "UserCPU_Time_millis_testing"),
-			new UserMeasures("usercpu_time_millis", "UserCPU_Time_millis"), };
+		new UserMeasures("predictive_accuracy", "Percent_correct", .01),
+		new UserMeasures("kappa", "Kappa_statistic"),
+		new UserMeasures("root_mean_squared_error", "Root_mean_squared_error"),
+		new UserMeasures("root_relative_squared_error", "Root_relative_squared_error", .01),
+		new UserMeasures("usercpu_time_millis_training", "UserCPU_Time_millis_training"),
+		new UserMeasures("usercpu_time_millis_testing", "UserCPU_Time_millis_testing"),
+		new UserMeasures("usercpu_time_millis", "UserCPU_Time_millis"), 
+		new UserMeasures("Elapsed_Time_training", "wall_clock_time_millis_training"),
+		new UserMeasures("Elapsed_Time_testing", "wall_clock_time_testing"),
+		new UserMeasures("Elapsed_Time", "wall_clock_time"), 
+	};
 
 	private static final long serialVersionUID = 1L;
 
@@ -136,19 +140,6 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 		throw new RuntimeException("TaskResultProducer Exception: function setInstances may not be invoked. Use setTask instead. ");
 	}
 
-	public void doFullRun() throws Exception {
-		Conversion.log("OK", "Total Model", "Started building a model over the full dataset. ");
-		OpenmlSplitEvaluator tse = ((OpenmlSplitEvaluator) m_SplitEvaluator);
-
-		Map<String, Object> splitEvaluatorResults = WekaAlgorithm.splitEvaluatorToMap(tse, tse.getResult(m_Instances, m_Instances));
-		
-		if (m_ResultListener instanceof TaskResultListener) {
-			((TaskResultListener) m_ResultListener).acceptFullModel(m_Task, m_Instances, tse.getClassifier(), (String) tse.getKey()[1], splitEvaluatorResults, tse);
-		}
-		
-		Conversion.log("OK", "Total Model", "Done building full dataset model. ");
-	}
-
 	@Override
 	public void doRun(int run) throws Exception {
 		OpenmlSplitEvaluator tse = ((OpenmlSplitEvaluator) m_SplitEvaluator);
@@ -200,12 +191,17 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 						
 					}
 
-					// just adding an additional measure: UserCPU_Time_millis
+					// adding an combination measures: UserCPU_Time_millis
 					// (total training time + test time)
 					if (splitEvaluatorResults.containsKey("UserCPU_Time_millis_training") && splitEvaluatorResults.containsKey("UserCPU_Time_millis_testing")) {
 						double traintime = (Double) splitEvaluatorResults.get("UserCPU_Time_millis_training");
 						double testtime = (Double) splitEvaluatorResults.get("UserCPU_Time_millis_testing");
 						splitEvaluatorResults.put("UserCPU_Time_millis", traintime + testtime);
+					}
+					if (splitEvaluatorResults.containsKey("Elapsed_Time_training") && splitEvaluatorResults.containsKey("Elapsed_Time_testing")) {
+						double traintime = (Double) splitEvaluatorResults.get("Elapsed_Time_training");
+						double testtime = (Double) splitEvaluatorResults.get("Elapsed_Time_testing");
+						splitEvaluatorResults.put("Elapsed_Time", traintime + testtime);
 					}
 
 					if (missingLabels == false) {
@@ -216,11 +212,10 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 						}
 					}
 					
-					boolean modelFullDataset = openmlconfig.getModelFullDataset();
 					if (m_ResultListener instanceof TaskResultListener) {
-						((TaskResultListener) m_ResultListener).acceptResultsForSending(m_Task, m_Instances, repeat, fold, sample,
+						((TaskResultListener) m_ResultListener).acceptResultsForSending(m_Task, m_Instances, repeat, fold, m_DataSplits.HAS_SAMPLES ? sample : null,
 								tse.getClassifier(), (String) tse.getKey()[1], m_DataSplits.getTestSetRowIds(repeat, fold, sample), tse.recentPredictions(), userMeasures,
-								trace, modelFullDataset);
+								trace);
 					}
 				} catch (UnsupportedAttributeTypeException ex) {
 					// Save the train and test data sets for debugging purposes?
