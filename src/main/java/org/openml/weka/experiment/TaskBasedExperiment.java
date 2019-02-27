@@ -43,9 +43,9 @@ import javax.swing.DefaultListModel;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.algorithms.TaskInformation;
 import org.openml.apiconnector.io.OpenmlConnector;
+import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.RunList;
 import org.openml.apiconnector.xml.Task;
-import org.openml.apiconnector.xml.RunList.Run;
 import org.openml.weka.algorithm.WekaAlgorithm;
 import org.openml.weka.algorithm.WekaConfig;
 
