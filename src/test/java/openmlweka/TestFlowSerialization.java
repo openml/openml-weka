@@ -42,11 +42,9 @@ import java.util.UUID;
 
 import org.junit.Ignore;
 import org.junit.Test;
-import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Parameter;
-import org.openml.apiconnector.xml.UploadFlow;
 import org.openml.apiconnector.xstream.XstreamXmlMapping;
 import org.openml.weka.algorithm.WekaAlgorithm;
 
@@ -110,8 +108,8 @@ public class TestFlowSerialization {
 		if (uploadName.length() > 64) {
 			uploadName = uploadName.substring(0, 64);
 		}
-		UploadFlow uf = connector.flowUpload(Conversion.stringToTempFile(xstream.toXML(uploaded), uploadName, "xml"), null, null);
-		Flow downloaded = connector.flowGet(uf.getId());
+		int flowId = connector.flowUpload(uploaded);
+		Flow downloaded = connector.flowGet(flowId);
 		
 		downloaded.setName(downloaded.getName().substring(0, downloaded.getName().indexOf("_" + uuid)));
 		uploaded.setName(uploaded.getName().substring(0, uploaded.getName().indexOf("_" + uuid)));

@@ -54,14 +54,10 @@ import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.Run.Parameter_setting;
 import org.openml.apiconnector.xml.Task;
 import org.openml.apiconnector.xml.Task.Output.Predictions.Feature;
-import org.openml.apiconnector.xml.UploadRun;
-import org.openml.apiconnector.xstream.XstreamXmlMapping;
 import org.openml.weka.algorithm.OptimizationTrace;
 import org.openml.weka.algorithm.WekaAlgorithm;
 import org.openml.weka.algorithm.OptimizationTrace.Quadlet;
 import org.openml.weka.algorithm.WekaConfig;
-
-import com.thoughtworks.xstream.XStream;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.evaluation.NominalPrediction;
@@ -145,9 +141,7 @@ public class TaskResultListener extends InstancesResultListener {
 
 	private int sendTask(OpenmlExecutedTask oet) throws Exception {
 		Conversion.log("INFO", "Upload Run", "Starting send run process... ");
-		XStream xstream = XstreamXmlMapping.getInstance();
 		File tmpPredictionsFile;
-		File tmpDescriptionFile;
 
 		// also add information about CPU performance and OS to run:
 		SciMark benchmarker = SciMark.getInstance();
@@ -156,7 +150,6 @@ public class TaskResultListener extends InstancesResultListener {
 			oet.getRun().addOutputEvaluation(new EvaluationScore("scimark_benchmark", benchmarker.getResult(), null, "[" + StringUtils.join(benchmarker.getStringArray(), ", ") + "]"));
 		}
 		tmpPredictionsFile = Conversion.stringToTempFile(oet.getPredictions().toString(), "weka_generated_predictions", Constants.DATASET_FORMAT);
-		tmpDescriptionFile = Conversion.stringToTempFile(xstream.toXML(oet.getRun()), "weka_generated_run", "xml");
 		Map<String, File> output_files = new HashMap<String, File>();
 
 		output_files.put("predictions", tmpPredictionsFile);
@@ -164,19 +157,14 @@ public class TaskResultListener extends InstancesResultListener {
 			output_files.put("trace", Conversion.stringToTempFile(oet.optimizationTrace.toString(), "optimization_trace", "arff"));
 		}
 
-		UploadRun ur = apiconnector.runUpload(tmpDescriptionFile, output_files);
-		return ur.getRun_id();
+		int runId = apiconnector.runUpload(oet.getRun(), output_files);
+		return runId;
 	}
 
 	private int sendTaskWithError(OpenmlExecutedTask oet) throws Exception {
 		Conversion.log("WARNING", "Upload Run", "Starting to upload run... (including error results) ");
-		XStream xstream = XstreamXmlMapping.getInstance();
-		File tmpDescriptionFile;
-
-		tmpDescriptionFile = Conversion.stringToTempFile(xstream.toXML(oet.getRun()), "weka_generated_run", Constants.DATASET_FORMAT);
-		
-		UploadRun ur = apiconnector.runUpload(tmpDescriptionFile, new HashMap<String, File>());
-		return ur.getRun_id();
+		int runId = apiconnector.runUpload(oet.getRun(), new HashMap<String, File>());
+		return runId;
 	}
 	
 	public Set<Integer> getRunIds() {

@@ -55,7 +55,6 @@ import org.openml.apiconnector.xml.Parameter;
 import org.openml.apiconnector.xml.Run.Parameter_setting;
 import org.openml.apiconnector.xml.SetupExists;
 import org.openml.apiconnector.xml.SetupParameters;
-import org.openml.apiconnector.xml.UploadFlow;
 import org.openml.apiconnector.xstream.XstreamXmlMapping;
 
 import weka.classifiers.Classifier;
@@ -198,12 +197,8 @@ public class WekaAlgorithm {
 			if(result.exists()) return result.getId();
 		} catch( Exception e ) { /* Suppress Exception since it is totally OK. */ }
 		// It does not exist. Create it. 
-		String xml = XstreamXmlMapping.getInstance().toXML(implementation);
-		//System.err.println(xml);
-		String flowName = implementation.getName();
-		File implementationFile = Conversion.stringToTempFile(xml, flowName, "xml");
-		UploadFlow ui = apiconnector.flowUpload(implementationFile, null, null);
-		return ui.getId();
+		int flowId = apiconnector.flowUpload(implementation);
+		return flowId;
 	}
 
 	public static Flow serializeClassifier(OptionHandler classifierOrig, String[] tags) throws Exception {
