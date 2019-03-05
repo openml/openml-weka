@@ -128,19 +128,27 @@ public class DataSplits {
 		return subsamples[repeat][fold][0][0];
 	}
 	
-	public Instances getTrainingSet(int repeat, int fold, int sample) {
-		return subsamples[repeat][fold][sample][0];
+	public Instances getTrainingSet(int repeat, int fold, Integer sample) {
+		if (sample == null) {
+			return getTrainingSet(repeat, fold);
+		} else {
+			return subsamples[repeat][fold][sample][0];
+		}
 	}
 
 	public Instances getTestSet(int repeat, int fold) {
 		return subsamples[repeat][fold][0][1];
 	}
 
-	public Instances getTestSet(int repeat, int fold, int sample) {
-		return subsamples[repeat][fold][sample][1];
+	public Instances getTestSet(int repeat, int fold, Integer sample) {
+		if (sample == null) {
+			return getTestSet(repeat, fold);
+		} else {
+			return subsamples[repeat][fold][sample][1];
+		}
 	}
 
-	public List<Integer> getTestSetRowIds(int repeat, int fold, int sample) {
+	public List<Integer> getTestSetRowIds(int repeat, int fold, Integer sample) {
 		return rowids[repeat][fold][sample];
 	}
 }
