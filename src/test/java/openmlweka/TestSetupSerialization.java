@@ -9,7 +9,6 @@ import java.util.ArrayList;
 
 import org.junit.Test;
 import org.openml.apiconnector.algorithms.Conversion;
-import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.SetupExists;
@@ -49,21 +48,20 @@ import weka.filters.unsupervised.attribute.Normalize;
 import weka.filters.unsupervised.attribute.RemoveUseless;
 import weka.filters.unsupervised.attribute.ReplaceMissingValues;
 
-public class TestSetupSerialization {
+public class TestSetupSerialization extends BaseTestFramework {
 
-	private static final String configString = "server=https://test.openml.org/; avoid_duplicate_runs=false; skip_jvm_benchmark=true; api_key=8baa83ecddfe44b561fd3d92442e3319";
+	private static final String configString = "avoid_duplicate_runs=false; skip_jvm_benchmark=true;";
 	private static final WekaConfig config = new WekaConfig(configString);
-	public final OpenmlConnector connector = new OpenmlConnector(config.getServer(), config.getApiKey());
 	
 	public final String[] TAGS = {"OpenmlWeka", "weka"};
 	public final XStream xstream = XstreamXmlMapping.getInstance();
 	
 	private OptionHandler deserializeSetup(OptionHandler classifier) throws Exception {
 		Flow flowOrig = WekaAlgorithm.serializeClassifier(classifier, null);
-		int runId = RunOpenmlJob.executeTask(connector, config, 115, (Classifier) classifier).getLeft();
-		Run run = connector.runGet(runId);
-		Flow flow = connector.flowGet(run.getFlow_id());
-		SetupParameters setup = connector.setupParameters(run.getSetup_id());
+		int runId = RunOpenmlJob.executeTask(client_write_test, config, 115, (Classifier) classifier).getLeft();
+		Run run = client_write_test.runGet(runId);
+		Flow flow = client_write_test.flowGet(run.getFlow_id());
+		SetupParameters setup = client_write_test.setupParameters(run.getSetup_id());
 		
 		OptionHandler retrieved = WekaAlgorithm.deserializeSetup(setup, flow, false);
 		
@@ -79,7 +77,7 @@ public class TestSetupSerialization {
 		Run setupObject = new Run(null, null, flow.getId(), null, parameterSettingsArray, null);
 		File setutupObjectDescription = Conversion.stringToTempFile(xstream.toXML(setupObject), "setup", "xml");
 		
-		SetupExists se = connector.setupExists(setutupObjectDescription);
+		SetupExists se = client_write_test.setupExists(setutupObjectDescription);
 		assertTrue(se.exists());
 		assertEquals(run.getSetup_id(), se.getId());
 		

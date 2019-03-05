@@ -42,13 +42,9 @@ import java.util.UUID;
 
 import org.junit.Ignore;
 import org.junit.Test;
-import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Parameter;
-import org.openml.apiconnector.xstream.XstreamXmlMapping;
 import org.openml.weka.algorithm.WekaAlgorithm;
-
-import com.thoughtworks.xstream.XStream;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.IteratedSingleClassifierEnhancer;
@@ -84,12 +80,9 @@ import weka.filters.unsupervised.attribute.Normalize;
 import weka.filters.unsupervised.attribute.RemoveUseless;
 import weka.filters.unsupervised.attribute.ReplaceMissingValues;
 
-public class TestFlowSerialization {
+public class TestFlowSerialization extends BaseTestFramework {
 	
-	public final String[] TAGS = {"OpenmlWeka", "weka"};
-	public final XStream xstream = XstreamXmlMapping.getInstance();
-	public final OpenmlConnector connector = new OpenmlConnector(
-			"https://test.openml.org/", "8baa83ecddfe44b561fd3d92442e3319");
+	private final String[] TAGS = {"OpenmlWeka", "weka"};
 	
 	private static Map<String, Parameter> getParametersAsMap(Flow flow) {
 		Parameter[] parameters = flow.getParameter();
@@ -108,8 +101,8 @@ public class TestFlowSerialization {
 		if (uploadName.length() > 64) {
 			uploadName = uploadName.substring(0, 64);
 		}
-		int flowId = connector.flowUpload(uploaded);
-		Flow downloaded = connector.flowGet(flowId);
+		int flowId = client_write_test.flowUpload(uploaded);
+		Flow downloaded = client_write_test.flowGet(flowId);
 		
 		downloaded.setName(downloaded.getName().substring(0, downloaded.getName().indexOf("_" + uuid)));
 		uploaded.setName(uploaded.getName().substring(0, uploaded.getName().indexOf("_" + uuid)));

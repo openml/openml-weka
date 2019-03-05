@@ -39,7 +39,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONArray;
 import org.junit.Test;
-import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.SetupParameters;
@@ -54,11 +53,10 @@ import weka.classifiers.meta.Bagging;
 import weka.classifiers.trees.J48;
 import weka.core.Utils;
 
-public class TestRunJob {
+public class TestRunJob extends BaseTestFramework {
 	
-	private static final String configString = "server=https://test.openml.org/; avoid_duplicate_runs=false; skip_jvm_benchmark=true; api_key=8baa83ecddfe44b561fd3d92442e3319";
+	private static final String configString = "avoid_duplicate_runs=false; skip_jvm_benchmark=true;";
 	private static final WekaConfig config = new WekaConfig(configString);
-	private static final OpenmlConnector openml = new OpenmlConnector(config.getServer(), config.getApiKey());
 	
 	@Test
 	public void testApiRunUploadFromCliString() throws Exception {
@@ -72,8 +70,8 @@ public class TestRunJob {
 	
 	@Test
 	public void testApiRunUploadNB() throws Exception {
-		int runIdA = RunOpenmlJob.executeTask(openml, config, 115, new NaiveBayes()).getLeft();
-		assertTrue(openml.runGet(runIdA).getFlow_name().contains("NaiveBayes"));
+		int runIdA = RunOpenmlJob.executeTask(client_write_test, config, 115, new NaiveBayes()).getLeft();
+		assertTrue(client_write_test.runGet(runIdA).getFlow_name().contains("NaiveBayes"));
 	}
 	
 	@Test
@@ -86,11 +84,11 @@ public class TestRunJob {
 		tree.setConfidenceFactor(confidenceFactor);
 		tree.setMinNumObj(minNumObj);
 		tree.setBinarySplits(binarySplits);
-		int runId = RunOpenmlJob.executeTask(openml, config, 115, tree).getLeft();
-		Run run = openml.runGet(runId);
+		int runId = RunOpenmlJob.executeTask(client_write_test, config, 115, tree).getLeft();
+		Run run = client_write_test.runGet(runId);
 		int setupId = run.getSetup_id();
-		Flow flow = openml.flowGet(run.getFlow_id());
-		SetupParameters sp = openml.setupParameters(setupId);
+		Flow flow = client_write_test.flowGet(run.getFlow_id());
+		SetupParameters sp = client_write_test.setupParameters(setupId);
 		Map<String, Parameter> parameters = sp.getParametersAsMap();
 		String fullName = flow.getName() + "(" + flow.getVersion() + ")";
 		assertEquals(new JSONArray(parameters.get(fullName + "_M").getValue()).getString(0), "" + minNumObj);
@@ -111,11 +109,11 @@ public class TestRunJob {
 		Bagging metaClassifier = new Bagging();
 		metaClassifier.setClassifier(tree);
 		
-		Pair<Integer, Run> result = RunOpenmlJob.executeTask(openml, config, 115, metaClassifier);
-		Run run = openml.runGet(result.getLeft());
+		Pair<Integer, Run> result = RunOpenmlJob.executeTask(client_write_test, config, 115, metaClassifier);
+		Run run = client_write_test.runGet(result.getLeft());
 		int setupId = run.getSetup_id();
-		openml.flowGet(run.getFlow_id());
-		openml.setupParameters(setupId);
+		client_write_test.flowGet(run.getFlow_id());
+		client_write_test.setupParameters(setupId);
 
 		int expectedEvaluations = TaskResultProducer.USER_MEASURES.length * 10 + 1; // times 10 because 10f CV, plus 1 for OS info
 		assertEquals(expectedEvaluations, result.getRight().getOutputEvaluation().length);
