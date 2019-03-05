@@ -56,12 +56,14 @@ import weka.core.Utils;
 public class TestRunJob extends BaseTestFramework {
 	
 	private static final String configString = "avoid_duplicate_runs=false; skip_jvm_benchmark=true;";
+	private static final String configStringWithServer = configString + ";server=" + url_test + ";api_key=" + client_write_test.getApiKey();
 	private static final WekaConfig config = new WekaConfig(configString);
 	
 	@Test
 	public void testApiRunUploadFromCliString() throws Exception {
+		// Note that this test function requires a config string with server, as it constructs the OpenMLConnector object itself. 
 		String[] algorithms = {"weka.classifiers.trees.REPTree", "weka.classifiers.meta.Bagging -P 50 -S 4385 -num-slots 4 -I 10 -W weka.classifiers.trees.J48 -- -R -N 3", "weka.classifiers.meta.FilteredClassifier -F \"weka.filters.supervised.attribute.Discretize -R first-last -precision 6\" -W weka.classifiers.trees.RandomForest -- -I 100 -K 0 -S 1 -num-slots 1"};
-		String[] args = {"-task_id", "1", "-config", configString, "-C"};
+		String[] args = {"-task_id", "1", "-config", configStringWithServer, "-C"};
 		
 		for (String algorithm : algorithms) {
 			RunOpenmlJob.main(ArrayUtils.add(args, algorithm));
