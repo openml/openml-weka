@@ -2,7 +2,16 @@
 
 The OpenmlWeka package
 
-(New) Ant installation
+(Pre)
+    Update Description.props
+
+(Version 2019, February)
+
+(1) run ant from package directory
+    ant -f build_package.xml make_package -Dpackage=openml-weka
+
+
+(Version 2016) Ant installation
 
 (1) Download Weka from SVN, trunk folder
     https://svn.cms.waikato.ac.nz/svn/weka/trunk
@@ -18,6 +27,6 @@ The OpenmlWeka package
 (4) Package available in OpenmlWeka folder.
 
 
-(Old) Plain ant installation:
+(Version 2015) Plain ant installation:
 
 ant make_external -DpackageName=OpenmlWeka
