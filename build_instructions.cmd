@@ -2,6 +2,9 @@
 
 The OpenmlWeka package
 
+(Pre)
+    Update Description.props
+
 (Version 2019, February)
 
 (1) run ant from package directory
