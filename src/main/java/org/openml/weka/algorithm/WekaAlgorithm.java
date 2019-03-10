@@ -363,7 +363,6 @@ public class WekaAlgorithm {
 	public static OptionHandler deserializeSetup(SetupParameters setup, Flow f, boolean defaultParameters) throws Exception {
 		String baseclass = f.getName().split("\\(")[0];
 		String[] allOptions = setupToOptionArray(setup, f, 0, defaultParameters);
-		System.out.println(Arrays.toString(allOptions));
 		OptionHandler result = (OptionHandler) Utils.forName(OptionHandler.class, baseclass, allOptions);
 		return result;
 	}
@@ -413,7 +412,12 @@ public class WekaAlgorithm {
 				} case OPTION: {
 					if (currentValues.length() > 0) {
 						primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
-						primaryOptions = ArrayUtils.add(primaryOptions, Utils.backQuoteChars(currentValues.getString(0)));
+						String valueVanilla = currentValues.getString(0);
+						String backQuotedValue = Utils.backQuoteChars(valueVanilla);
+						if (!backQuotedValue.equals(valueVanilla)) {
+							backQuotedValue = "\"" + backQuotedValue + "\"";
+						}
+						primaryOptions = ArrayUtils.add(primaryOptions, backQuotedValue);
 					}
 					break;
 				} case PARAMETERFREE_CLASS: {

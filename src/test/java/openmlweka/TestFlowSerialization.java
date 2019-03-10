@@ -46,7 +46,6 @@ import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Parameter;
 import org.openml.weka.algorithm.WekaAlgorithm;
 
-import weka.classifiers.AbstractClassifier;
 import weka.classifiers.Classifier;
 import weka.classifiers.IteratedSingleClassifierEnhancer;
 import weka.classifiers.bayes.NaiveBayes;
@@ -71,7 +70,6 @@ import weka.classifiers.trees.REPTree;
 import weka.classifiers.trees.RandomForest;
 import weka.classifiers.trees.RandomTree;
 import weka.core.OptionHandler;
-import weka.core.Utils;
 import weka.core.neighboursearch.CoverTree;
 import weka.core.neighboursearch.KDTree;
 import weka.core.neighboursearch.LinearNNSearch;
@@ -289,9 +287,9 @@ public class TestFlowSerialization extends BaseTestFramework {
 	@Test
 	public void testCommonFilters() throws Exception {
 		Filter[] filters = { 
-			// new Normalize(),
-			// new RemoveUseless(),
-			// new ReplaceMissingValues(),
+			new Normalize(),
+			new RemoveUseless(),
+			new ReplaceMissingValues(),
 			new StringToWordVector(),
 		};
 
@@ -304,17 +302,12 @@ public class TestFlowSerialization extends BaseTestFramework {
 	
 	@Test
 	public void testParameterWithRegexValue() throws Exception {
-		
-		//String[] options = {"-delimiters", "\' \r\n\t.,;:\\\'\\\"()?!\'"};
-		String optionsString = "-delimiters " + Utils.quote(new WordTokenizer().getDelimiters());
-		System.out.println(optionsString);
-		String[] optionsArray = Utils.splitOptions(optionsString);
-		System.out.println("option string: " + Arrays.toString(optionsArray));
-		Utils.forName(WordTokenizer.class, "weka.core.tokenizers.WordTokenizer", optionsArray);
-		
-		/*FilteredClassifier fc = new FilteredClassifier();
+		FilteredClassifier fc = new FilteredClassifier();
 		StringToWordVector stw = new StringToWordVector();
 		WordTokenizer wt = new WordTokenizer();
+		// ensure that there are some \r\t\n in there, as 
+		// well as a space (complex cases for weka)
+		wt.setDelimiters(" \\r\\n\\t.,;:'\\\"()?!");
 		stw.setTokenizer(wt);
 		fc.setFilter(stw);
 		
@@ -322,13 +315,9 @@ public class TestFlowSerialization extends BaseTestFramework {
 		String uuid = UUID.randomUUID().toString();
 		flow.setName(flow.getName() + "_" + uuid);
 		int flowId = client_write_test.flowUpload(flow);
-		System.out.println(flowId);
 		Flow downloaded = client_write_test.flowGet(flowId);
-
-		System.out.println("orig: " + Arrays.toString(fc.getOptions()));
-		System.out.println("start deserialization");
+		
 		OptionHandler fc2 = WekaAlgorithm.deserializeClassifier(downloaded);
-		System.out.println("des : " + Arrays.toString(fc2.getOptions()));
-		assertArrayEquals(fc.getOptions(), fc2.getOptions()); */
+		assertArrayEquals(fc.getOptions(), fc2.getOptions());
 	}
 }
