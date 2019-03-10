@@ -2,7 +2,13 @@ package org.openml.weka.algorithm;
 
 
 public enum WekaParameterType {
-	FLAG("flag"), CLASSIFIER("classifier"), OPTIONHANDLER("optionhandler"), OPTION("option"), ARRAY("array");
+	// flag: boolean parameter, 0 arguments
+	// classifier: has a weka classifier as subclass. supports options. often used for ensembles
+	// optionhandler: has any other type of option handler as subclass. supports options. Often used for k-nn or svn (kernel)
+	// parameterfree_class: one level higher than optionhandler. Typically indicates that the class does not handle
+	// option: vanilla option, for string, float or int values
+	// array: array of vanilla values
+	FLAG("flag"), CLASSIFIER("classifier"), OPTIONHANDLER("optionhandler"), PARAMETERFREE_CLASS("parameterfree_class"), OPTION("option"), ARRAY("array");
 
 	private String text;
 

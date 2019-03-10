@@ -40,12 +40,13 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
-import org.junit.Ignore;
+import org.apache.commons.math3.util.Pair;
 import org.junit.Test;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Parameter;
 import org.openml.weka.algorithm.WekaAlgorithm;
 
+import weka.classifiers.AbstractClassifier;
 import weka.classifiers.Classifier;
 import weka.classifiers.IteratedSingleClassifierEnhancer;
 import weka.classifiers.bayes.NaiveBayes;
@@ -70,19 +71,22 @@ import weka.classifiers.trees.REPTree;
 import weka.classifiers.trees.RandomForest;
 import weka.classifiers.trees.RandomTree;
 import weka.core.OptionHandler;
+import weka.core.Utils;
 import weka.core.neighboursearch.CoverTree;
 import weka.core.neighboursearch.KDTree;
 import weka.core.neighboursearch.LinearNNSearch;
 import weka.core.neighboursearch.NearestNeighbourSearch;
+import weka.core.tokenizers.WordTokenizer;
 import weka.filters.Filter;
 import weka.filters.MultiFilter;
 import weka.filters.unsupervised.attribute.Normalize;
 import weka.filters.unsupervised.attribute.RemoveUseless;
 import weka.filters.unsupervised.attribute.ReplaceMissingValues;
+import weka.filters.unsupervised.attribute.StringToWordVector;
 
 public class TestFlowSerialization extends BaseTestFramework {
 	
-	private final String[] TAGS = {"OpenmlWeka", "weka"};
+	private static final String[] TAGS = {"OpenmlWeka", "weka"};
 	
 	private static Map<String, Parameter> getParametersAsMap(Flow flow) {
 		Parameter[] parameters = flow.getParameter();
@@ -93,49 +97,47 @@ public class TestFlowSerialization extends BaseTestFramework {
 		return paramMap;
 	}
 	
-	private Flow uploadFlowWithSentinelThenDownload(Flow uploaded) throws IOException, Exception {
+	private static Pair<Flow, OptionHandler> serializeUploadDownloadDeserialize(OptionHandler classifier) throws IOException, Exception {
+		Flow flowToUpload = WekaAlgorithm.serializeClassifier(classifier, TAGS);
 		String uuid = UUID.randomUUID().toString();
 		
-		uploaded.setName(uploaded.getName() + "_" + uuid);
-		String uploadName = uploaded.getName();
+		flowToUpload.setName(flowToUpload.getName() + "_" + uuid);
+		String uploadName = flowToUpload.getName();
 		if (uploadName.length() > 64) {
 			uploadName = uploadName.substring(0, 64);
 		}
-		int flowId = client_write_test.flowUpload(uploaded);
+		int flowId = client_write_test.flowUpload(flowToUpload);
 		Flow downloaded = client_write_test.flowGet(flowId);
 		
 		downloaded.setName(downloaded.getName().substring(0, downloaded.getName().indexOf("_" + uuid)));
-		uploaded.setName(uploaded.getName().substring(0, uploaded.getName().indexOf("_" + uuid)));
+		flowToUpload.setName(flowToUpload.getName().substring(0, flowToUpload.getName().indexOf("_" + uuid)));
 		
-		return downloaded;
+		// check parameter names equals
+		assert(getParametersAsMap(downloaded).keySet().equals(getParametersAsMap(flowToUpload).keySet()));
+		
+		// check deserialized flow
+		String uploadedAsString = xstream.toXML(flowToUpload);
+		OptionHandler retrievedFlow = WekaAlgorithm.deserializeClassifier(downloaded);
+		Flow reconstructed = WekaAlgorithm.serializeClassifier(retrievedFlow, TAGS);
+		String reconstructedAsString = xstream.toXML(reconstructed);
+		assertEquals(uploadedAsString, reconstructedAsString);
+		
+		assertArrayEquals(classifier.getOptions(), retrievedFlow.getOptions());
+		return new Pair<Flow, OptionHandler>(downloaded, retrievedFlow);
 	}
 	
 	@Test
 	public void testSimpleFlow() throws Exception {
-		OptionHandler[] classifiers = {new ZeroR(), new OneR(), new JRip(), 
-									   new J48(), new REPTree(), new HoeffdingTree(), new LMT(),
-		                               new NaiveBayes(), new IBk(), new SMO(),
-		                               new Logistic(), new MultilayerPerceptron(),
-		                               new RandomForest(), new Bagging(), new AdaBoostM1(), 
-		                               new FilteredClassifier()};
+		OptionHandler[] classifiers = { 
+			new ZeroR(), new OneR(), new JRip(), new J48(), new REPTree(), 
+			new HoeffdingTree(), new LMT(), new NaiveBayes(), new IBk(), 
+			new SMO(), new Logistic(), new MultilayerPerceptron(), 
+			new RandomForest(), new Bagging(), new AdaBoostM1(), 
+			new FilteredClassifier() 
+		};
 		                            
-		for (OptionHandler classif : classifiers){
-			Flow uploaded = WekaAlgorithm.serializeClassifier(classif, TAGS);
-
-			Flow downloaded = uploadFlowWithSentinelThenDownload(uploaded);
-			
-			// check parameter names equals
-			assert(getParametersAsMap(downloaded).keySet().equals(getParametersAsMap(uploaded).keySet()));
-			
-			// check deserialized flow
-			String uploadedAsString = xstream.toXML(uploaded);
-			OptionHandler retrievedFlow = WekaAlgorithm.deserializeClassifier(downloaded);
-			Flow reconstructed = WekaAlgorithm.serializeClassifier(retrievedFlow, TAGS);
-			String reconstructedAsString = xstream.toXML(reconstructed);
-			assertEquals(uploadedAsString, reconstructedAsString);
-			
-			// check options are equal
-			assertArrayEquals(classif.getOptions(), retrievedFlow.getOptions());
+		for (OptionHandler classifier : classifiers){
+			serializeUploadDownloadDeserialize(classifier);
 		}
 	}
 	
@@ -184,14 +186,7 @@ public class TestFlowSerialization extends BaseTestFramework {
 				assertEquals(expectedDefaultValue, getParametersAsMap(flowOrig).get("W").getDefault_value());
 				
 				// check if can re-instantiate
-				Flow uploadedFlow = uploadFlowWithSentinelThenDownload(flowOrig);
-				assert(uploadedFlow.getParameter().length > 0);
-				OptionHandler deserialized = WekaAlgorithm.deserializeClassifier(uploadedFlow);
-				Flow deserializedFlow = WekaAlgorithm.serializeClassifier(deserialized, null);
-				assertEquals(xstream.toXML(flowOrig), xstream.toXML(deserializedFlow));
-				
-				// check options are equal
-				assert(Arrays.equals(metaclassif.getOptions(), deserialized.getOptions()));
+				serializeUploadDownloadDeserialize(metaclassif);
 			}
 		}
 	}
@@ -218,17 +213,14 @@ public class TestFlowSerialization extends BaseTestFramework {
 			assertEquals(expectedDefaultValue, getParametersAsMap(flow).get("W").getDefault_value());
 			
 			// check if can re-instantiate
-			Flow uploadedFlow = uploadFlowWithSentinelThenDownload(flow);
-			assert(uploadedFlow.getParameter().length > 0);
-			OptionHandler deserialized = WekaAlgorithm.deserializeClassifier(uploadedFlow);
-			Flow deserializedFlow = WekaAlgorithm.serializeClassifier(deserialized, null);
-			assertEquals(xstream.toXML(flow), xstream.toXML(deserializedFlow));
+			Pair<Flow, OptionHandler> result = serializeUploadDownloadDeserialize(metaclassif);
+			
 			
 			// check if number of components is OK
-			assertEquals(currentFlowCount, deserializedFlow.countComponents());
+			assertEquals(currentFlowCount, result.getFirst().countComponents());
 			
 			// check options are equal
-			assert(Arrays.equals(metaclassif.getOptions(), deserialized.getOptions()));
+			assert(Arrays.equals(metaclassif.getOptions(), result.getSecond().getOptions()));
 			
 			// continue to the next level 
 			addLevelToFlow(metaclassif, flow, levelsToGo - 1, currentFlowCount);
@@ -247,7 +239,11 @@ public class TestFlowSerialization extends BaseTestFramework {
 	
 	@Test
 	public void testMultiLevelFlowWithFilter() throws Exception {
-		Filter[] filters = {new ReplaceMissingValues(), new RemoveUseless(), new Normalize()};
+		Filter[] filters = {
+			new ReplaceMissingValues(), 
+			new RemoveUseless(), 
+			new Normalize(),
+		};
 		
 		FilteredClassifier classifier = new FilteredClassifier();
 		for (Filter filter : filters) {
@@ -279,7 +275,6 @@ public class TestFlowSerialization extends BaseTestFramework {
 	}
 	
 	@Test
-	@Ignore
 	public void testKnn() throws Exception {
 		IBk knn = new IBk();
 		
@@ -287,16 +282,53 @@ public class TestFlowSerialization extends BaseTestFramework {
 		
 		for (NearestNeighbourSearch search : nns) {
 			knn.setNearestNeighbourSearchAlgorithm(search);
-			Flow flow = WekaAlgorithm.serializeClassifier(knn, null);
-			
-			// check if can re-instantiate
-			Flow uploadedFlow = uploadFlowWithSentinelThenDownload(flow);
-			OptionHandler deserialized = WekaAlgorithm.deserializeClassifier(uploadedFlow);
-			Flow deserializedFlow = WekaAlgorithm.serializeClassifier(deserialized, null);
-			assertEquals(xstream.toXML(deserializedFlow), xstream.toXML(flow));
-			
-			// check options are equal
-			assertArrayEquals(knn.getOptions(), deserialized.getOptions());
+			serializeUploadDownloadDeserialize(knn);
 		}
+	}
+	
+	@Test
+	public void testCommonFilters() throws Exception {
+		Filter[] filters = { 
+			// new Normalize(),
+			// new RemoveUseless(),
+			// new ReplaceMissingValues(),
+			new StringToWordVector(),
+		};
+
+		FilteredClassifier classifier = new FilteredClassifier();
+		for (Filter filter : filters) {
+			classifier.setFilter(filter);
+			serializeUploadDownloadDeserialize(classifier);
+		}
+	}
+	
+	@Test
+	public void testParameterWithRegexValue() throws Exception {
+		
+		//String[] options = {"-delimiters", "\' \r\n\t.,;:\\\'\\\"()?!\'"};
+		String optionsString = "-delimiters " + Utils.quote(new WordTokenizer().getDelimiters());
+		System.out.println(optionsString);
+		String[] optionsArray = Utils.splitOptions(optionsString);
+		System.out.println("option string: " + Arrays.toString(optionsArray));
+		Utils.forName(WordTokenizer.class, "weka.core.tokenizers.WordTokenizer", optionsArray);
+		
+		/*FilteredClassifier fc = new FilteredClassifier();
+		StringToWordVector stw = new StringToWordVector();
+		WordTokenizer wt = new WordTokenizer();
+		stw.setTokenizer(wt);
+		fc.setFilter(stw);
+		
+		Flow flow = WekaAlgorithm.serializeClassifier(fc, TAGS);
+		String uuid = UUID.randomUUID().toString();
+		flow.setName(flow.getName() + "_" + uuid);
+		int flowId = client_write_test.flowUpload(flow);
+		System.out.println(flowId);
+		Flow downloaded = client_write_test.flowGet(flowId);
+
+		System.out.println("orig: " + Arrays.toString(fc.getOptions()));
+		System.out.println("start deserialization");
+		OptionHandler fc2 = WekaAlgorithm.deserializeClassifier(downloaded);
+		System.out.println("des : " + Arrays.toString(fc2.getOptions()));
+		assertArrayEquals(fc.getOptions(), fc2.getOptions()); */
 	}
 }

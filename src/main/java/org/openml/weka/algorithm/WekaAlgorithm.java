@@ -65,6 +65,7 @@ import weka.core.TechnicalInformationHandler;
 import weka.core.Utils;
 import weka.core.Version;
 import weka.core.setupgenerator.AbstractParameter;
+import weka.core.stemmers.Stemmer;
 import weka.experiment.SplitEvaluator;
 
 public class WekaAlgorithm {
@@ -302,8 +303,13 @@ public class WekaAlgorithm {
 				
 				Parameter current = new Parameter(parameter.name(), WekaParameterType.OPTIONHANDLER.getName(), parameterValuesToJson(selectedDefaultValues, Constants.MAX_LENGTH_PARAM_VALUE), parameter.description());
 				flowParameters.put(parameter.name(), current);
+			} else if (isAssignableFrom(Stemmer.class, currentValues)) {
+				WekaParameterType type = WekaParameterType.PARAMETERFREE_CLASS;
+				Parameter current = new Parameter(parameter.name(), type.getName(), parameterValuesToJson(defaultValues, Constants.MAX_LENGTH_PARAM_VALUE), parameter.description());
+				flowParameters.put(parameter.name(), current);
 			} else {
-				throw new Exception("Classifier contains an unsupported parameter type: " + parameter.name());
+				System.err.print(parameter.name() + ", " + parameter.numArguments());
+				throw new Exception("Classifier contains an unsupported parameter type. Name: " + parameter.name());
 			}
 		}
 		
@@ -357,6 +363,7 @@ public class WekaAlgorithm {
 	public static OptionHandler deserializeSetup(SetupParameters setup, Flow f, boolean defaultParameters) throws Exception {
 		String baseclass = f.getName().split("\\(")[0];
 		String[] allOptions = setupToOptionArray(setup, f, 0, defaultParameters);
+		System.out.println(Arrays.toString(allOptions));
 		OptionHandler result = (OptionHandler) Utils.forName(OptionHandler.class, baseclass, allOptions);
 		return result;
 	}
@@ -404,6 +411,13 @@ public class WekaAlgorithm {
 					}
 					break;
 				} case OPTION: {
+					if (currentValues.length() > 0) {
+						primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
+						primaryOptions = ArrayUtils.add(primaryOptions, Utils.backQuoteChars(currentValues.getString(0)));
+					}
+					break;
+				} case PARAMETERFREE_CLASS: {
+					// should be the same as option. 
 					if (currentValues.length() > 0) {
 						primaryOptions = ArrayUtils.add(primaryOptions, "-" + p.getName());
 						primaryOptions = ArrayUtils.add(primaryOptions, currentValues.getString(0));
@@ -455,6 +469,13 @@ public class WekaAlgorithm {
 						settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(baseValues, Constants.MAX_LENGTH_PARAM_VALUE)));
 						break;
 					} case OPTION: {
+						String optionvalue = Utils.getOption(p.getName(), parameters);
+						if(optionvalue != "") {
+							String[] currentValue = {optionvalue};
+							settings.add(new Parameter_setting(implementation.getId(), p.getName(), parameterValuesToJson(currentValue, Constants.MAX_LENGTH_PARAM_VALUE)));
+						}
+						break;
+					} case PARAMETERFREE_CLASS: {
 						String optionvalue = Utils.getOption(p.getName(), parameters);
 						if(optionvalue != "") {
 							String[] currentValue = {optionvalue};

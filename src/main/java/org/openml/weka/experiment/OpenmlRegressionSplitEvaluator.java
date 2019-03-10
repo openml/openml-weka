@@ -33,7 +33,6 @@ package org.openml.weka.experiment;
 
 import java.util.ArrayList;
 
-import weka.classifiers.Classifier;
 import weka.classifiers.evaluation.Prediction;
 import weka.experiment.RegressionSplitEvaluator;
 
@@ -46,9 +45,5 @@ public class OpenmlRegressionSplitEvaluator extends RegressionSplitEvaluator imp
 			return m_Evaluation.predictions();
 		}
 		throw new Exception("No predictions set by SplitEvaluator. ");
-	}
-	
-	public Classifier getClassifier() {
-		return m_Classifier;
 	}
 }
