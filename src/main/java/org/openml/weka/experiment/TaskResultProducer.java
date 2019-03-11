@@ -183,10 +183,10 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 					Map<String, Object> splitEvaluatorResults = WekaAlgorithm.splitEvaluatorToMap(tse, seResults);
 					List<Quadlet<String, Double, List<Entry<String, Object>>, Boolean>> trace = null;
 					try {
-						trace = OptimizationTrace.extractTrace(tse.getClassifier());
+						trace = OptimizationTrace.extractTrace(tse.getTrainedClassifier());
 
 						Conversion.log("OK", "Trace", "Found MultiSearch or FilteredClassifier(MultiSearch). Extracting trace. ");
-					} catch (Exception e) {
+					} catch (NoClassDefFoundError e) {
 						// This is totally OK, no need to catch this
 						
 					}
@@ -216,15 +216,15 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 					
 					if (m_ResultListener instanceof TaskResultListener) {
 						((TaskResultListener) m_ResultListener).acceptResultsForSending(m_Task, m_Instances, repeat, fold, m_DataSplits.HAS_SAMPLES ? sample : null,
-								tse.getClassifier(), (String) tse.getKey()[1], m_DataSplits.getTestSetRowIds(repeat, fold, sample), tse.recentPredictions(), userMeasures,
+								tse.getTrainedClassifier(), (String) tse.getKey()[1], m_DataSplits.getTestSetRowIds(repeat, fold, sample), tse.recentPredictions(), userMeasures,
 								trace);
 					}
 				} catch (UnsupportedAttributeTypeException ex) {
 					// Save the train and test data sets for debugging purposes?
 					Conversion.log("ERROR", "Perform Run", "Unable to finish " + currentRunRepresentation + ", " + currentFoldRepresentation + " with "
-							+ tse.getClassifier().getClass().getName() + ": " + ex.getMessage());
+							+ tse.getTrainedClassifier().getClass().getName() + ": " + ex.getMessage());
 					if (m_ResultListener instanceof TaskResultListener) {
-						((TaskResultListener) m_ResultListener).acceptErrorResult(m_Task, m_Instances, tse.getClassifier(), ex.getMessage(), (String) tse.getKey()[1]);
+						((TaskResultListener) m_ResultListener).acceptErrorResult(m_Task, m_Instances, tse.getTrainedClassifier(), ex.getMessage(), (String) tse.getKey()[1]);
 					}
 				}
 			}

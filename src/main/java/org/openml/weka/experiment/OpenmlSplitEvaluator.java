@@ -43,6 +43,6 @@ import weka.experiment.SplitEvaluator;
 public interface OpenmlSplitEvaluator extends SplitEvaluator, OptionHandler, AdditionalMeasureProducer, RevisionHandler {
 	
 	public ArrayList<Prediction> recentPredictions() throws Exception;
-	
-	public Classifier getClassifier();
+
+	public Classifier getTrainedClassifier();
 }

@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import weka.classifiers.Classifier;
-import weka.classifiers.meta.FilteredClassifier;
 import weka.classifiers.meta.MultiSearch;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
@@ -98,17 +97,16 @@ public class OptimizationTrace {
 	public static List<Quadlet<String,Double,List<Entry<String,Object>>,Boolean>> extractTrace(Classifier classifier) throws Exception {
 		try {
 			Classifier classifierReference = classifier;
-			// important to support also filtered classifier instances (with multisearch as classifier)
-			if (classifierReference instanceof FilteredClassifier) {
-				classifierReference = ((FilteredClassifier) classifier).getClassifier();
-			}
 			if (!(classifierReference instanceof MultiSearch)) {
-				throw new Exception("Classifier not instance of 'weka.classifiers.meta.MultiSearch'");
+				throw new NoClassDefFoundError("Classifier not instance of 'weka.classifiers.meta.MultiSearch'");
 				// Is OK, will be catched by outer function
 			}
 			
 			MultiSearch multiSearch = (MultiSearch) classifierReference;
 			List<Quadlet<String,Double,List<Entry<String,Object>>,Boolean>> result = new ArrayList<OptimizationTrace.Quadlet<String,Double,List<Entry<String,Object>>,Boolean>>();
+			if (multiSearch.getTraceSize() == 0) {
+				throw new Exception("No Trace iterations performed with MultiSearch");
+			}
 			
 			String selectedSetupString = Utils.toCommandLine(multiSearch.getBestClassifier());
 			for (int i = 0; i < multiSearch.getTraceSize(); ++i) {
@@ -120,7 +118,7 @@ public class OptimizationTrace {
 			
 			return result;
 		} catch(NoClassDefFoundError e) {
-			throw new Exception("Could not find MultiSearch package. Ignoring trace options. ");
+			throw new NoClassDefFoundError("Could not find MultiSearch package. Ignoring trace options. ");
 		}
 	}
 	
