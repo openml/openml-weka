@@ -308,7 +308,6 @@ public class WekaAlgorithm {
 				Parameter current = new Parameter(parameter.name(), type.getName(), parameterValuesToJson(defaultValues, Constants.MAX_LENGTH_PARAM_VALUE), parameter.description());
 				flowParameters.put(parameter.name(), current);
 			} else {
-				System.err.print(parameter.name() + ", " + parameter.numArguments());
 				throw new Exception("Classifier contains an unsupported parameter type. Name: " + parameter.name());
 			}
 		}

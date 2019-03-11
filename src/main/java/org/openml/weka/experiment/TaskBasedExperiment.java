@@ -80,6 +80,11 @@ public class TaskBasedExperiment extends Experiment {
 
 		this.apiconnector = apiconnector;
 		this.openmlconfig = config;
+		
+		if (this.openmlconfig.getDebugMode()) {
+			Conversion.log("OK", "DebugMode", "Starting OpenML TaskBasedExperiment in Debug Mode");
+			this.apiconnector.setVerboseLevel(1);
+		}
 	}
 
 	public DefaultListModel<Task> getTasks() {

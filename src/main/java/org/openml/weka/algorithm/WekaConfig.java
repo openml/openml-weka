@@ -58,6 +58,19 @@ public class WekaConfig extends Config {
 		return false;
 	}
 	
+	/**
+	 * @return Whether to benchmark Jvm before uploading results
+	 */
+	public boolean getDebugMode() {
+		if (get("debug_mode") == null) {
+			return false; // default value
+		}
+		if (get("debug_mode").equals("true")) {
+			return true;
+		}
+		return false;
+	}
+	
 
 	/**
 	 * @return Whether to avoid duplicate runs

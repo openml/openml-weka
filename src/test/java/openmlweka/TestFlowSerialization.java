@@ -238,9 +238,9 @@ public class TestFlowSerialization extends BaseTestFramework {
 	@Test
 	public void testMultiLevelFlowWithFilter() throws Exception {
 		Filter[] filters = {
-			new ReplaceMissingValues(), 
-			new RemoveUseless(), 
 			new Normalize(),
+			new ReplaceMissingValues(),
+			new StringToWordVector(),
 		};
 		
 		FilteredClassifier classifier = new FilteredClassifier();
