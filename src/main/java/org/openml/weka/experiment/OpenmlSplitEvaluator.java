@@ -40,9 +40,24 @@ import weka.core.OptionHandler;
 import weka.core.RevisionHandler;
 import weka.experiment.SplitEvaluator;
 
-public interface OpenmlSplitEvaluator extends SplitEvaluator, OptionHandler, AdditionalMeasureProducer, RevisionHandler {
-	
+public interface OpenmlSplitEvaluator
+		extends SplitEvaluator, OptionHandler, AdditionalMeasureProducer, RevisionHandler {
+
+	/**
+	 * Returns the predictions of the classifier that was called on it's predict
+	 * function most recent.
+	 * 
+	 * @return List of predictions
+	 * @throws Exception - no predictions available
+	 */
 	public ArrayList<Prediction> recentPredictions() throws Exception;
 
+	/**
+	 * Returns the classifier that was trained most recent. Useful for trace
+	 * operations. Note that this has different functionality than the native
+	 * getClassifier function, which returns an untrained classifier.
+	 * 
+	 * @return the classifier
+	 */
 	public Classifier getTrainedClassifier();
 }
