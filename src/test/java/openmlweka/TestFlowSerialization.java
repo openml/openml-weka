@@ -237,10 +237,13 @@ public class TestFlowSerialization extends BaseTestFramework {
 	
 	@Test
 	public void testMultiLevelFlowWithFilter() throws Exception {
+		// This function tests the final component count of the resulting flow
+		// make sure to only test with filters that do not create additional components
+		// (or adjust the arguments for function addLevelToFlow)
 		Filter[] filters = {
 			new Normalize(),
+			new RemoveUseless(),
 			new ReplaceMissingValues(),
-			new StringToWordVector(),
 		};
 		
 		FilteredClassifier classifier = new FilteredClassifier();
