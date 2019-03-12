@@ -105,7 +105,7 @@ public class TaskResultListener extends InstancesResultListener {
 		runs = new TreeMap<Integer, Run>();
 	}
 
-	public void acceptResultsForSending(Task t, Instances sourceData, Integer repeat, Integer fold, Integer sample, Classifier classifier, String options,
+	public void acceptResultsForSending(Task t, Instances sourceData, int nrOfExpectedBatches, Integer repeat, Integer fold, Integer sample, Classifier classifier, String options,
 			List<Integer> rowids, ArrayList<Prediction> predictions, Map<String, MetricScore> userMeasures,
 			List<Quadlet<String, Double, List<Entry<String, Object>>, Boolean>> optimizationTrace) throws Exception {
 		// TODO: do something better than undefined
@@ -113,7 +113,7 @@ public class TaskResultListener extends InstancesResultListener {
 		String implementationId = classifier.getClass().getName() + "(" + revision + ")";
 		String key = t.getTask_id() + "_" + implementationId + "_" + options;
 		if (currentlyCollecting.containsKey(key) == false) {
-			currentlyCollecting.put(key, new OpenmlExecutedTask(t, classifier, sourceData, null, options, apiconnector, all_tags));
+			currentlyCollecting.put(key, new OpenmlExecutedTask(t, classifier, sourceData, nrOfExpectedBatches, null, options, all_tags));
 		}
 		OpenmlExecutedTask oet = currentlyCollecting.get(key);
 		oet.addBatchOfPredictions(fold, repeat, sample, rowids, predictions, optimizationTrace);
@@ -126,7 +126,7 @@ public class TaskResultListener extends InstancesResultListener {
 		}
 	}
 
-	public void acceptErrorResult(Task t, Instances sourceData, Classifier classifier, String error_message, String options) throws Exception {
+	public void acceptErrorResult(Task t, Instances sourceData, int nrOfExpectedBatches, Classifier classifier, String error_message, String options) throws Exception {
 		// TODO: do something better than undefined
 		String revision = (classifier instanceof RevisionHandler) ? ((RevisionHandler) classifier).getRevision() : "undefined";
 		String implementationId = classifier.getClass().getName() + "(" + revision + ")";
@@ -134,7 +134,7 @@ public class TaskResultListener extends InstancesResultListener {
 
 		if (tasksWithErrors.contains(key) == false) {
 			tasksWithErrors.add(key);
-			int runId = sendTaskWithError(new OpenmlExecutedTask(t, classifier, sourceData, error_message, options, apiconnector, all_tags));
+			int runId = sendTaskWithError(new OpenmlExecutedTask(t, classifier, sourceData, nrOfExpectedBatches, error_message, options, all_tags));
 			runs.put(runId, null);
 		}
 	}
@@ -188,10 +188,7 @@ public class TaskResultListener extends InstancesResultListener {
 		private Run run;
 		private int implementation_id;
 
-		private int repeats;
-		private int samples;
-
-		public OpenmlExecutedTask(Task t, Classifier classifier, Instances sourceData, String error_message, String options, OpenmlConnector apiconnector, String[] tags) throws Exception {
+		public OpenmlExecutedTask(Task t, Classifier classifier, Instances sourceData, int nrOfExpectedResultBatches, String error_message, String options, String[] tags) throws Exception {
 			this.task = t;
 			
 			// TODO: we need more information!
@@ -207,16 +204,8 @@ public class TaskResultListener extends InstancesResultListener {
 				}
 			}
 			task_id = this.task.getTask_id();
-
-			repeats = 1;
-			int folds = 1;
-			samples = 1;
 			
-			try { repeats = TaskInformation.getNumberOfRepeats(t); } catch (Exception e) {}
-			try { folds = TaskInformation.getNumberOfFolds(t); } catch (Exception e) {}
-			try { samples = TaskInformation.getNumberOfSamples(t); } catch (Exception e) {}
-			
-			nrOfExpectedResultBatches = repeats * folds * samples;
+			this.nrOfExpectedResultBatches = nrOfExpectedResultBatches;
 			nrOfResultBatches = 0;
 			ArrayList<Attribute> attInfo = new ArrayList<Attribute>();
 			for (Feature f : TaskInformation.getPredictions(t).getFeatures()) {

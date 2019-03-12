@@ -31,13 +31,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 package org.openml.weka.algorithm;
 
-import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.openml.apiconnector.algorithms.TaskInformation;
-import org.openml.apiconnector.io.OpenmlConnector;
-import org.openml.apiconnector.xml.DataSetDescription;
+import org.openml.apiconnector.xml.EstimationProcedure;
 import org.openml.apiconnector.xml.Task;
 
 import weka.core.Attribute;
@@ -48,6 +46,7 @@ public class DataSplits {
 
 	private final Instances[][][][] subsamples;
 	private final ArrayList<Integer>[][][] rowids;
+	private final EstimationProcedure estimationProcedure;
 
 	public final int REPEATS;
 	public final int FOLDS;
@@ -55,39 +54,51 @@ public class DataSplits {
 	public final int DATASET_ID;
 	public final boolean HAS_SAMPLES;
 	
-	// TODO: should overload?? 
-	public static DataSplits get(OpenmlConnector openml, int taskId) throws Exception {
-		Task task = openml.taskGet(taskId);
-		String targetAttribute = TaskInformation.getSourceData(task).getTarget_feature();
-		int dataId = TaskInformation.getSourceData(task).getData_set_id();
-		DataSetDescription dsd = openml.dataGet(dataId);
+	public DataSplits(Task task, EstimationProcedure ep, Instances dataset, Instances datasplits) throws Exception {
+		if (TaskInformation.getEstimationProcedure(task).getId() != ep.getId()) {
+			throw new Exception("Task and ep not compatible. ");
+		}
+		estimationProcedure = ep;
+		final int numRepeats;
+		final int numFolds;
+		final int numSamples;
 		
-		Instances dataset = new Instances(new FileReader(openml.datasetGet(dsd)));
+		switch (estimationProcedure.getType()) {
+			case HOLDOUT: {
+				numRepeats = estimationProcedure.getRepeats();
+				numFolds = 1;
+				break;
+			}
+			case CROSSVALIDATION: {
+				numRepeats = estimationProcedure.getRepeats();
+				numFolds = estimationProcedure.getFolds();
+				break;
+			}
+			case LEAVEONEOUT: {
+				numRepeats = 1;
+				numFolds = dataset.size();
+				break;
+			}
+			default: {
+				throw new Exception("Estimation Procedure Type not supported: " + estimationProcedure.getType());
+			}
+		}
 		
-		dataset.setClass(dataset.attribute(targetAttribute));
-		Instances splits = new Instances(new FileReader(openml.taskSplitsGet(task)));
-		
-		return new DataSplits(task, dataset, splits);
-	}
-	
-	@SuppressWarnings("unchecked")
-	public DataSplits(Task task, Instances dataset, Instances datasplits) throws Exception {
-		int numRepeats = TaskInformation.getNumberOfRepeats(task);
-		int numFolds = TaskInformation.getNumberOfFolds(task);
-		int numSamples = 1;
-		boolean hasSamples = false;
-		try {
-			numSamples = TaskInformation.getNumberOfSamples(task);
-			hasSamples = true;
-		} catch (Exception e) {
-			
+		if (task.getTask_type_id() == 3) {
+			HAS_SAMPLES = true;
+			for (int i = 0; i < datasplits.numAttributes(); ++i) {
+				System.out.println(datasplits.attribute(i).name());
+			}
+			numSamples = (int) datasplits.attribute("sample").getUpperNumericBound();
+		} else {
+			HAS_SAMPLES = false;
+			numSamples = 1;
 		}
 
 		DATASET_ID = TaskInformation.getSourceData(task).getData_set_id();
 		REPEATS = numRepeats;
 		FOLDS = numFolds;
 		SAMPLES = numSamples;
-		HAS_SAMPLES = hasSamples;
 		
 		subsamples = new Instances[REPEATS][FOLDS][SAMPLES][2];
 		rowids = new ArrayList[REPEATS][FOLDS][SAMPLES];
@@ -123,7 +134,6 @@ public class DataSplits {
 		}
 	}
 
-
 	public Instances getTrainingSet(int repeat, int fold) {
 		return subsamples[repeat][fold][0][0];
 	}
@@ -150,5 +160,9 @@ public class DataSplits {
 
 	public List<Integer> getTestSetRowIds(int repeat, int fold, Integer sample) {
 		return rowids[repeat][fold][sample];
+	}
+	
+	public int getNrOfRuns() {
+		return REPEATS * FOLDS * SAMPLES;
 	}
 }

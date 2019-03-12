@@ -43,6 +43,7 @@ import javax.swing.DefaultListModel;
 import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.algorithms.TaskInformation;
 import org.openml.apiconnector.io.OpenmlConnector;
+import org.openml.apiconnector.xml.EstimationProcedure;
 import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.RunList;
 import org.openml.apiconnector.xml.Task;
@@ -148,9 +149,11 @@ public class TaskBasedExperiment extends Experiment {
 
 		if (m_CurrentTask == null) {
 			m_CurrentTask = (Task) getTasks().elementAt(m_DatasetNumber);
-
+			int epId = TaskInformation.getEstimationProcedure(m_CurrentTask).getId();
+			EstimationProcedure ep = apiconnector.estimationProcedureGet(epId);
+			
 			((TaskResultProducer) m_ResultProducer).setTask(m_CurrentTask);
-			this.setRunUpper(TaskInformation.getNumberOfRepeats(m_CurrentTask));
+			this.setRunUpper(ep.getRepeats());
 
 			// set classifier. Important, since by alternating between
 			// regression and

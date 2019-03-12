@@ -1,0 +1,80 @@
+package openmlweka;
+
+import static org.junit.Assert.*;
+
+import org.junit.Test;
+import org.openml.apiconnector.xml.Run;
+import org.openml.weka.algorithm.WekaConfig;
+import org.openml.weka.experiment.RunOpenmlJob;
+
+import weka.classifiers.bayes.NaiveBayes;
+
+public class TestVariousEstimationProcedures extends BaseTestFramework {
+
+	private static final String configString = "avoid_duplicate_runs=false; skip_jvm_benchmark=true;";
+	private static final WekaConfig config = new WekaConfig(configString);
+	
+	private static void runAndCheck(int taskId) throws Exception {
+		int runId = RunOpenmlJob.executeTask(client_write_test, config, taskId, new NaiveBayes()).getLeft();
+		Run r = client_write_test.runGet(runId);
+		assertNull(r.getError_message());
+		assertTrue(r.getFlow_name().contains("NaiveBayes"));
+		assertTrue(r.getOutputFileAsMap().size() == 2);
+	}
+	
+	@Test
+	public void test10foldCV() throws Exception {
+		// irish dataset
+		int taskId = 235;
+		runAndCheck(taskId);
+	}
+	
+	@Test
+	public void test5times2foldCV() throws Exception {
+		// irish dataset
+		int taskId = 236;
+		runAndCheck(taskId);
+	}
+	
+	@Test
+	public void test10times10foldCV() throws Exception {
+		// irish dataset
+		int taskId = 237;
+		runAndCheck(taskId);
+	}
+	
+	@Test
+	public void testLeaveOneOut() throws Exception {
+		// irish dataset
+		int taskId = 238;
+		runAndCheck(taskId);
+	}
+	
+	@Test
+	public void test33Holdout() throws Exception {
+		// irish dataset
+		int taskId = 239;
+		runAndCheck(taskId);
+	}
+	
+	@Test
+	public void test10Holdout() throws Exception {
+		// irish dataset
+		int taskId = 240;
+		runAndCheck(taskId);
+	}
+	
+	@Test
+	public void test10foldLearningCurve() throws Exception {
+		// irish dataset
+		int taskId = 841;
+		runAndCheck(taskId);
+	}
+	
+	@Test
+	public void test10times10foldLearningCurve() throws Exception {
+		// irish dataset
+		int taskId = 842;
+		runAndCheck(taskId);
+	}
+}

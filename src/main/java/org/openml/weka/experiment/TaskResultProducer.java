@@ -41,6 +41,7 @@ import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.algorithms.TaskInformation;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.models.MetricScore;
+import org.openml.apiconnector.xml.EstimationProcedure;
 import org.openml.apiconnector.xml.Task;
 import org.openml.apiconnector.xml.Task.Input.Data_set;
 import org.openml.weka.algorithm.DataSplits;
@@ -122,9 +123,11 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 		int targetAttributeIndex = InstancesHelper.getAttributeIndex(m_Instances, ds.getTarget_feature());
 		AttributeStats targetStats = m_Instances.attributeStats(targetAttributeIndex);
 		Instances splits = new Instances(new FileReader(apiconnector.taskSplitsGet(m_Task)));
+		int epId = TaskInformation.getEstimationProcedure(m_Task).getId();
+		EstimationProcedure ep = apiconnector.estimationProcedureGet(epId);
 
 		missingLabels = targetStats.missingCount > 0;
-		m_DataSplits = new DataSplits(m_Task, m_Instances, splits);
+		m_DataSplits = new DataSplits(m_Task, ep, m_Instances, splits);
 		m_NumFolds = m_DataSplits.FOLDS;
 		m_NumSamples = m_DataSplits.SAMPLES;
 
@@ -142,6 +145,13 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 
 	@Override
 	public void doRun(int run) throws Exception {
+		if (m_DataSplits == null) {
+			// interestingly, weka catches all errors thrown in the setTask()
+			// function. In the case that the constructor of m_DataSplits throws 
+			// an error, it will get ignored. This if statement is a failsafe
+			// for this. 
+			throw new Exception("DataSplits not properly initialized.");
+		}
 		OpenmlSplitEvaluator tse = ((OpenmlSplitEvaluator) m_SplitEvaluator);
 		String currentRunRepresentation = currentTaskRepresentation + " with " + (String) tse.getKey()[0] + " - Repeat " + (run - 1);
 		Conversion.log("OK", "Attribtes", "Attributes available: " + InstancesHelper.getAttributes(m_Instances));
@@ -215,7 +225,7 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 					}
 					
 					if (m_ResultListener instanceof TaskResultListener) {
-						((TaskResultListener) m_ResultListener).acceptResultsForSending(m_Task, m_Instances, repeat, fold, m_DataSplits.HAS_SAMPLES ? sample : null,
+						((TaskResultListener) m_ResultListener).acceptResultsForSending(m_Task, m_Instances, m_DataSplits.getNrOfRuns(), repeat, fold, m_DataSplits.HAS_SAMPLES ? sample : null,
 								tse.getTrainedClassifier(), (String) tse.getKey()[1], m_DataSplits.getTestSetRowIds(repeat, fold, sample), tse.recentPredictions(), userMeasures,
 								trace);
 					}
@@ -224,7 +234,7 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 					Conversion.log("ERROR", "Perform Run", "Unable to finish " + currentRunRepresentation + ", " + currentFoldRepresentation + " with "
 							+ tse.getTrainedClassifier().getClass().getName() + ": " + ex.getMessage());
 					if (m_ResultListener instanceof TaskResultListener) {
-						((TaskResultListener) m_ResultListener).acceptErrorResult(m_Task, m_Instances, tse.getTrainedClassifier(), ex.getMessage(), (String) tse.getKey()[1]);
+						((TaskResultListener) m_ResultListener).acceptErrorResult(m_Task, m_Instances, m_DataSplits.getNrOfRuns(), tse.getTrainedClassifier(), ex.getMessage(), (String) tse.getKey()[1]);
 					}
 				}
 			}
