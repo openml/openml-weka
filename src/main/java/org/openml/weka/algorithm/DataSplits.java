@@ -39,6 +39,7 @@ import org.openml.apiconnector.xml.EstimationProcedure;
 import org.openml.apiconnector.xml.Task;
 
 import weka.core.Attribute;
+import weka.core.AttributeStats;
 import weka.core.Instance;
 import weka.core.Instances;
 
@@ -86,7 +87,8 @@ public class DataSplits {
 		
 		if (task.getTask_type_id() == 3) {
 			HAS_SAMPLES = true;
-			numSamples = (int) datasplits.attribute("sample").getUpperNumericBound();
+			AttributeStats att = datasplits.attributeStats(datasplits.attribute("sample").index());
+			numSamples = (int) att.numericStats.max + 1;
 		} else {
 			HAS_SAMPLES = false;
 			numSamples = 1;
@@ -129,6 +131,10 @@ public class DataSplits {
 				rowids[repeat][fold][sample].add(rowid);
 			}
 		}
+	}
+	
+	public EstimationProcedure getEstimationProcedure() {
+		return estimationProcedure;
 	}
 
 	public Instances getTrainingSet(int repeat, int fold) {

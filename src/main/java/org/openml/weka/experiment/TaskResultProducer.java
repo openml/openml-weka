@@ -42,6 +42,7 @@ import org.openml.apiconnector.algorithms.TaskInformation;
 import org.openml.apiconnector.io.OpenmlConnector;
 import org.openml.apiconnector.models.MetricScore;
 import org.openml.apiconnector.xml.EstimationProcedure;
+import org.openml.apiconnector.xml.EstimationProcedureType;
 import org.openml.apiconnector.xml.Task;
 import org.openml.apiconnector.xml.Task.Input.Data_set;
 import org.openml.weka.algorithm.DataSplits;
@@ -203,25 +204,32 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 
 					// adding an combination measures: UserCPU_Time_millis
 					// (total training time + test time)
-					if (splitEvaluatorResults.containsKey("UserCPU_Time_millis_training") && splitEvaluatorResults.containsKey("UserCPU_Time_millis_testing")) {
-						double traintime = (Double) splitEvaluatorResults.get("UserCPU_Time_millis_training");
-						double testtime = (Double) splitEvaluatorResults.get("UserCPU_Time_millis_testing");
-						splitEvaluatorResults.put("UserCPU_Time_millis", traintime + testtime);
-					}
-					if (splitEvaluatorResults.containsKey("Elapsed_Time_training") && splitEvaluatorResults.containsKey("Elapsed_Time_testing")) {
-						double traintime = (Double) splitEvaluatorResults.get("Elapsed_Time_training");
-						double testtime = (Double) splitEvaluatorResults.get("Elapsed_Time_testing");
-						splitEvaluatorResults.put("Elapsed_Time", traintime + testtime);
-					}
-
-					if (missingLabels == false) {
-						for (UserMeasures um : USER_MEASURES) {
-							if (splitEvaluatorResults.containsKey(um.wekaFunctionName)) {
-								userMeasures.put(um.openmlFunctionName, new MetricScore(((Double) splitEvaluatorResults.get(um.wekaFunctionName)) * um.factor, test.size()));
-							} else {
-								Conversion.log("WARNING", "MEASURE", "Missing measure " + um.wekaFunctionName);
+					
+					if (m_DataSplits.getEstimationProcedure().getType() != EstimationProcedureType.LEAVEONEOUT) {
+						if (splitEvaluatorResults.containsKey("UserCPU_Time_millis_training") && splitEvaluatorResults.containsKey("UserCPU_Time_millis_testing")) {
+							double traintime = (Double) splitEvaluatorResults.get("UserCPU_Time_millis_training");
+							double testtime = (Double) splitEvaluatorResults.get("UserCPU_Time_millis_testing");
+							splitEvaluatorResults.put("UserCPU_Time_millis", traintime + testtime);
+						}
+						if (splitEvaluatorResults.containsKey("Elapsed_Time_training") && splitEvaluatorResults.containsKey("Elapsed_Time_testing")) {
+							double traintime = (Double) splitEvaluatorResults.get("Elapsed_Time_training");
+							double testtime = (Double) splitEvaluatorResults.get("Elapsed_Time_testing");
+							splitEvaluatorResults.put("Elapsed_Time", traintime + testtime);
+						}
+						
+						// can't add user measures if: there is no labeled test set / LOO 
+						// TODO: LOO can actually have run time predictions
+						if (missingLabels == false) {
+							for (UserMeasures um : USER_MEASURES) {
+								if (splitEvaluatorResults.containsKey(um.wekaFunctionName)) {
+									userMeasures.put(um.openmlFunctionName, new MetricScore(((Double) splitEvaluatorResults.get(um.wekaFunctionName)) * um.factor, test.size()));
+								} else {
+									Conversion.log("WARNING", "MEASURE", "Missing measure " + um.wekaFunctionName);
+								}
 							}
 						}
+					} else {
+						splitEvaluatorResults = null;
 					}
 					
 					if (m_ResultListener instanceof TaskResultListener) {
