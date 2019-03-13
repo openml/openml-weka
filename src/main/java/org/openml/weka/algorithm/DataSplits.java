@@ -86,9 +86,6 @@ public class DataSplits {
 		
 		if (task.getTask_type_id() == 3) {
 			HAS_SAMPLES = true;
-			for (int i = 0; i < datasplits.numAttributes(); ++i) {
-				System.out.println(datasplits.attribute(i).name());
-			}
 			numSamples = (int) datasplits.attribute("sample").getUpperNumericBound();
 		} else {
 			HAS_SAMPLES = false;
