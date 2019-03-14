@@ -204,8 +204,8 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 
 					// adding an combination measures: UserCPU_Time_millis
 					// (total training time + test time)
-					
-					if (m_DataSplits.getEstimationProcedure().getType() != EstimationProcedureType.LEAVEONEOUT) {
+					EstimationProcedureType epType = m_DataSplits.getEstimationProcedure().getType();
+					if (epType != EstimationProcedureType.LEAVEONEOUT && epType != EstimationProcedureType.TESTONTRAININGDATA) {
 						if (splitEvaluatorResults.containsKey("UserCPU_Time_millis_training") && splitEvaluatorResults.containsKey("UserCPU_Time_millis_testing")) {
 							double traintime = (Double) splitEvaluatorResults.get("UserCPU_Time_millis_training");
 							double testtime = (Double) splitEvaluatorResults.get("UserCPU_Time_millis_testing");
