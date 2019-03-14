@@ -83,6 +83,7 @@ public class DataSplits {
 			case TESTONTRAININGDATA: {
 				numRepeats = 1;
 				numFolds = 1;
+				break;
 			}
 			default: {
 				throw new Exception("Estimation Procedure Type not supported: " + estimationProcedure.getType());

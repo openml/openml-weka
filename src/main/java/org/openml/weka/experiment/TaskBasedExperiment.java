@@ -153,7 +153,14 @@ public class TaskBasedExperiment extends Experiment {
 			EstimationProcedure ep = apiconnector.estimationProcedureGet(epId);
 			
 			((TaskResultProducer) m_ResultProducer).setTask(m_CurrentTask);
-			this.setRunUpper(ep.getRepeats());
+			int numRuns;
+			try {
+				numRuns = ep.getRepeats();
+			} catch(NullPointerException e) {
+				// it can be that the number of repeats is not set
+				numRuns = 1;
+			}
+			this.setRunUpper(numRuns);
 
 			// set classifier. Important, since by alternating between
 			// regression and
