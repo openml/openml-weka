@@ -128,7 +128,7 @@ public class TaskResultProducer extends CrossValidationResultProducer {
 		EstimationProcedure ep = apiconnector.estimationProcedureGet(epId);
 
 		missingLabels = targetStats.missingCount > 0;
-		m_DataSplits = new DataSplits(m_Task, ep, m_Instances, splits);
+		m_DataSplits = new DataSplits(ds.getData_set_id(), t.getTask_type_id(), ep, m_Instances, splits);
 		m_NumFolds = m_DataSplits.FOLDS;
 		m_NumSamples = m_DataSplits.SAMPLES;
 

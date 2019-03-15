@@ -34,9 +34,7 @@ package org.openml.weka.algorithm;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.openml.apiconnector.algorithms.TaskInformation;
 import org.openml.apiconnector.xml.EstimationProcedure;
-import org.openml.apiconnector.xml.Task;
 
 import weka.core.Attribute;
 import weka.core.AttributeStats;
@@ -55,10 +53,7 @@ public class DataSplits {
 	public final int DATASET_ID;
 	public final boolean HAS_SAMPLES;
 	
-	public DataSplits(Task task, EstimationProcedure ep, Instances dataset, Instances datasplits) throws Exception {
-		if (TaskInformation.getEstimationProcedure(task).getId() != ep.getId()) {
-			throw new Exception("Task and ep not compatible. ");
-		}
+	public DataSplits(int datasetId, int taskTypeId, EstimationProcedure ep, Instances dataset, Instances datasplits) throws Exception {
 		estimationProcedure = ep;
 		final int numRepeats;
 		final int numFolds;
@@ -90,7 +85,7 @@ public class DataSplits {
 			}
 		}
 		
-		if (task.getTask_type_id() == 3) {
+		if (taskTypeId == 3) {
 			HAS_SAMPLES = true;
 			AttributeStats att = datasplits.attributeStats(datasplits.attribute("sample").index());
 			numSamples = (int) att.numericStats.max + 1;
@@ -99,7 +94,7 @@ public class DataSplits {
 			numSamples = 1;
 		}
 
-		DATASET_ID = TaskInformation.getSourceData(task).getData_set_id();
+		DATASET_ID = datasetId;
 		REPEATS = numRepeats;
 		FOLDS = numFolds;
 		SAMPLES = numSamples;
