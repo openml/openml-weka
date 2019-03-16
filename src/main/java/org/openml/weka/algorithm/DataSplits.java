@@ -53,7 +53,7 @@ public class DataSplits {
 	public final int DATASET_ID;
 	public final boolean HAS_SAMPLES;
 	
-	public DataSplits(int datasetId, int taskTypeId, EstimationProcedure ep, Instances dataset, Instances datasplits) throws Exception {
+	public DataSplits(int datasetId, EstimationProcedure ep, Instances dataset, Instances datasplits) throws Exception {
 		estimationProcedure = ep;
 		final int numRepeats;
 		final int numFolds;
@@ -85,7 +85,7 @@ public class DataSplits {
 			}
 		}
 		
-		if (taskTypeId == 3) {
+		if (ep.getTtid() == 3) {
 			HAS_SAMPLES = true;
 			AttributeStats att = datasplits.attributeStats(datasplits.attribute("sample").index());
 			numSamples = (int) att.numericStats.max + 1;
