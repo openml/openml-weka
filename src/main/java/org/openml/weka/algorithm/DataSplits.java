@@ -62,7 +62,12 @@ public class DataSplits {
 		switch (estimationProcedure.getType()) {
 			case HOLDOUT: {
 				numRepeats = estimationProcedure.getRepeats();
-				numFolds = 1;
+				numFolds = estimationProcedure.getFolds();
+				break;
+			}
+			case HOLDOUT_ORDERED: {
+				numRepeats = estimationProcedure.getRepeats();
+				numFolds = estimationProcedure.getFolds();
 				break;
 			}
 			case CROSSVALIDATION: {

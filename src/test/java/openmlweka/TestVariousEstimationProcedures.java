@@ -115,4 +115,11 @@ public class TestVariousEstimationProcedures extends BaseTestFramework {
 		int taskId = 1108;
 		runAndCheck(taskId);
 	}
+	
+	@Test
+	public void testHoldoutOrdered() throws Exception {
+		// irish dataset
+		int taskId = 1245;
+		runAndCheck(taskId);
+	}
 }
