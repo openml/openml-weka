@@ -10,6 +10,9 @@ The OpenmlWeka package
 (1) run ant from package directory
     ant -f build_package.xml make_package -Dpackage=openml-weka
 
+(*) Note that this ant script uses the lib and dependencies folders, and not
+    the maven dependencies. Effort needs to be made to keep these in sync with
+    the propor maven dependencies (or update the ant script)
 
 (Version 2016) Ant installation
 
