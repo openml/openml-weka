@@ -8,7 +8,7 @@ The OpenmlWeka package
 (Version 2019, February)
 
 (1) run ant from package directory
-    ant -f build_package.xml make_package -Dpackage=openml-weka
+    ant -f build_package.xml make_package -Dpackage=OpenMLWeka
 
 (*) Note that this ant script uses the lib and dependencies folders, and not
     the maven dependencies. Effort needs to be made to keep these in sync with
