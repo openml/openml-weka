@@ -247,6 +247,7 @@
           </execution>
         </executions>
         <configuration>
+          <source>8</source> <!-- see bugreport: https://bugs.openjdk.java.net/browse/JDK-8212233-->
           <show>protected</show>
           <nohelp>true</nohelp>
           <!-- avoids "-SNAPSHOT" in title when using the release.xml configuration -->

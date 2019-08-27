@@ -140,7 +140,7 @@ public class TaskResultListener extends InstancesResultListener {
 	}
 
 	private int sendTask(OpenmlExecutedTask oet) throws Exception {
-		Conversion.log("INFO", "Upload Run", "Starting send run process... ");
+		Conversion.log("INFO", "Upload Run", "Task complete, start uploading... ");
 		File tmpPredictionsFile;
 
 		// also add information about CPU performance and OS to run:
@@ -158,12 +158,16 @@ public class TaskResultListener extends InstancesResultListener {
 		}
 
 		int runId = apiconnector.runUpload(oet.getRun(), output_files);
+		String retrieveUrl = apiconnector.getApiUrl() + "run/" + runId;
+		Conversion.log("INFO", "Upload Run", "Uploaded with run id = " + runId + ", see " + retrieveUrl);
 		return runId;
 	}
 
 	private int sendTaskWithError(OpenmlExecutedTask oet) throws Exception {
 		Conversion.log("WARNING", "Upload Run", "Starting to upload run... (including error results) ");
 		int runId = apiconnector.runUpload(oet.getRun(), new HashMap<String, File>());
+		String retrieveUrl = apiconnector.getApiUrl() + "run/" + runId;
+		Conversion.log("INFO", "Upload Run", "Uploaded with run id = " + runId + ", see " + retrieveUrl);
 		return runId;
 	}
 	

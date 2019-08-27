@@ -62,7 +62,7 @@ public class DataSplits {
 		switch (estimationProcedure.getType()) {
 			case HOLDOUT: {
 				numRepeats = estimationProcedure.getRepeats();
-				numFolds = estimationProcedure.getFolds();
+				numFolds = 1;
 				break;
 			}
 			case HOLDOUT_ORDERED: {
