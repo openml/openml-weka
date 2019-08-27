@@ -29,8 +29,8 @@ public class OpenmlWekaConnector extends OpenmlConnector {
 	/**
 	 * Downloads a dataset from OpenML and parses it as Instances object
 	 * 
-	 * @param fileId - the openml file id
-	 * @return the file parsed as arff
+	 * @param dsd - the data set description object, as downloaded from openml
+	 * @return the dataset file parsed as arff
 	 * @throws Exception - Can be various things, but most notably a 
 	 * 					   parsing exception when the file id is not
 	 *                     valid arff
@@ -43,8 +43,8 @@ public class OpenmlWekaConnector extends OpenmlConnector {
 	/**
 	 * Downloads a data splits file from OpenML and parses it as Instances object
 	 * 
-	 * @param fileId - the openml file id
-	 * @return the file parsed as arff
+	 * @param task - the downloaded task object, as downloaded from openml
+	 * @return the splits file parsed as arff
 	 * @throws Exception - Can be various things, but most notably a 
 	 * 					   parsing exception when the file id is not
 	 *                     valid arff
