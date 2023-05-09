@@ -1,7 +1,9 @@
 package org.openml.weka.io;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -27,7 +29,9 @@ public class OpenmlWekaConnector extends OpenmlConnector {
 	}
 	
 	/**
-	 * Downloads a dataset from OpenML and parses it as Instances object
+	 * Open a http connection to a openML dataset file and return a file reader.
+	 * The resulting file reader can be wrapped by a Weka ArffReader. Alternatively, it can be wrapped by a Weka
+	 * Instances object, in which case the complete file will be read into memory.
 	 * 
 	 * @param dsd - the data set description object, as downloaded from openml
 	 * @return the dataset file parsed as arff
@@ -35,13 +39,15 @@ public class OpenmlWekaConnector extends OpenmlConnector {
 	 * 					   parsing exception when the file id is not
 	 *                     valid arff
 	 */
-	public Instances getDataset(DataSetDescription dsd) throws Exception {
+	public Reader getDataset(DataSetDescription dsd) throws Exception {
 		URL url = super.getOpenmlFileUrl(dsd.getFile_id(), dsd.getName() + ".arff");
-		return new Instances(urlToStreamReader(url));
+		return urlToStreamReader(url);
 	}
 	
 	/**
-	 * Downloads a data splits file from OpenML and parses it as Instances object
+	 * Open a http connection to a openML splits file and return a file reader.
+	 * The resulting file reader can be wrapped by a Weka ArffReader. Alternatively, it can be wrapped by a Weka
+	 * Instances object, in which case the complete file will be read into memory.
 	 * 
 	 * @param task - the downloaded task object, as downloaded from openml
 	 * @return the splits file parsed as arff
@@ -49,26 +55,28 @@ public class OpenmlWekaConnector extends OpenmlConnector {
 	 * 					   parsing exception when the file id is not
 	 *                     valid arff
 	 */
-	public Instances getSplitsFromTask(Task task) throws Exception {
+	public Reader getSplitsFromTask(Task task) throws Exception {
 		URL url = TaskInformation.getEstimationProcedure(task).getData_splits_url();
-		return new Instances(urlToStreamReader(url));
+		return urlToStreamReader(url);
 	}
 	
 	/**
-	 * Downloads a file from OpenML and parses it as Instances object
+	 * Open a http connection to a openML file and return a file reader.
+	 * The resulting file reader can be wrapped by a Weka ArffReader. Alternatively, it can be wrapped by a Weka
+	 * Instances object, in which case the complete file will be read into memory.
 	 * 
 	 * @param fileId - the openml file id
-	 * @return the file parsed as arff
+	 * @return a file reader
 	 * @throws Exception - Can be various things, but most notably a 
 	 * 					   parsing exception when the file id is not
 	 *                     valid arff
 	 */
-	public Instances getArffFromUrl(int fileId) throws Exception {
+	public Reader getArffFromUrl(int fileId) throws Exception {
 		URL url = super.getOpenmlFileUrl(fileId, fileId + ".arff");
-		return new Instances(urlToStreamReader(url));
+		return urlToStreamReader(url);
 	}
 
-	private static InputStreamReader urlToStreamReader(URL url) throws IOException {
+	private static Reader urlToStreamReader(URL url) throws IOException {
 		HttpURLConnection urlConnection = (HttpURLConnection) (url.openConnection());
 		urlConnection.setInstanceFollowRedirects(true);
 		urlConnection.setConnectTimeout(1000);
@@ -76,6 +84,6 @@ public class OpenmlWekaConnector extends OpenmlConnector {
 		urlConnection.connect();
 		int responseCode = urlConnection.getResponseCode();
 		Conversion.log("OK", "URL", "HTTP request status code [" + responseCode + "] URL [" + url + "]");
-		return new InputStreamReader(urlConnection.getInputStream());
+		return new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
 	}
 }
