@@ -77,6 +77,9 @@ public class OpenmlWekaConnector extends OpenmlConnector {
 	}
 
 	private static Reader urlToStreamReader(URL url) throws IOException {
+		// JvR: please note that not all redirects are being respected.
+		// Forwards that change protocol (such as http - https) are not respected (safety, documented)
+		// please ensure to only use https calls
 		HttpURLConnection urlConnection = (HttpURLConnection) (url.openConnection());
 		urlConnection.setInstanceFollowRedirects(true);
 		urlConnection.setConnectTimeout(1000);
