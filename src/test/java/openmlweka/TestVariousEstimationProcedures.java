@@ -34,7 +34,7 @@ public class TestVariousEstimationProcedures extends BaseTestFramework {
 		assertTrue(r.getOutputFileAsMap().size() == 2);
 		
 		int fileId = r.getOutputFileAsMap().get("predictions").getFileId();
-		Instances predictions = client_read_test.getArffFromUrl(fileId);
+		Instances predictions = new Instances(client_read_test.getArffFromUrl(fileId));
 		
 		Set<String> expectedAttributes = new TreeSet<String>(Arrays.asList(CONSTANT_ATTRIBUTES));
 		if (task.getTask_type_id() == 3) {

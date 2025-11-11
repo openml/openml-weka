@@ -3,4 +3,9 @@
 /dist
 /doc
 /data
-/target/
+/target
+
+
+*.class
+*.log
+.idea

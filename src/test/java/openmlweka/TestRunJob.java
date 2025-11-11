@@ -39,9 +39,11 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONArray;
 import org.junit.Test;
+import org.openml.apiconnector.algorithms.Conversion;
 import org.openml.apiconnector.xml.Flow;
 import org.openml.apiconnector.xml.Run;
 import org.openml.apiconnector.xml.SetupParameters;
+import org.openml.apiconnector.xml.Study;
 import org.openml.apiconnector.xml.Parameter;
 import org.openml.weka.algorithm.WekaConfig;
 import org.openml.weka.experiment.RunOpenmlJob;
@@ -96,6 +98,10 @@ public class TestRunJob extends BaseTestFramework {
 		assertEquals(new JSONArray(parameters.get(fullName + "_M").getValue()).getString(0), "" + minNumObj);
 		assertEquals(new JSONArray(parameters.get(fullName + "_C").getValue()).getString(0), "" + confidenceFactor);
 		assertEquals(new JSONArray(parameters.get(fullName + "_B").getValue()).getString(0), "" + binarySplits);
+		
+		// try deleting the run afterwards
+		client_write_test.runDelete(run.getRun_id());
+		Conversion.log("OK", "run delete", "deleted run " + runId);
 	}
 	
 	@Test
@@ -119,6 +125,10 @@ public class TestRunJob extends BaseTestFramework {
 
 		int expectedEvaluations = TaskResultProducer.USER_MEASURES.length * 10 + 1; // times 10 because 10f CV, plus 1 for OS info
 		assertEquals(expectedEvaluations, result.getRight().getOutputEvaluation().length);
+		
+		// try deleting the flow afterwards, with force delete (can take a while)
+		int id = client_admin_test.runDelete(run.getRun_id()).getId();
+		Conversion.log("OK", "flow force delete", "deleted run " + id);
 	}
 	
 	@Test

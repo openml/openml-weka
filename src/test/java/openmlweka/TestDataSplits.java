@@ -47,8 +47,8 @@ public class TestDataSplits extends BaseTestFramework {
 		Task task = client_read_test.taskGet(taskId);
 		EstimationProcedure ep = client_read_test.estimationProcedureGet(TaskInformation.getEstimationProcedure(task).getId());
 		DataSetDescription dsd = client_read_test.dataGet(TaskInformation.getSourceData(task).getData_set_id());
-		Instances dataset = client_read_test.getDataset(dsd);
-		Instances datasplits = client_read_test.getSplitsFromTask(task);
+		Instances dataset = new Instances(client_read_test.getDataset(dsd));
+		Instances datasplits = new Instances(client_read_test.getSplitsFromTask(task));
 		DataSplits ds = new DataSplits(dsd.getId(), ep, dataset, datasplits);
 		
 		assertTrue(ds.REPEATS * ds.FOLDS > 0);

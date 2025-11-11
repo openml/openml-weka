@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.io.IOUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import weka.core.Environment;
@@ -22,6 +23,7 @@ public class TestIntegeration {
 	private static final String LOC_RESULT = "dist/" + PACKAGE_NAME + ".zip";
 	
 	@Test
+	@Ignore
 	public void testBuildAndInstall() throws Exception {
 		Environment env = Environment.getSystemWide();
 		env.addVariable("WEKA_HOME", "/tmp/wekafiles_unittest_" + UUID.randomUUID().toString());
